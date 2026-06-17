@@ -46,8 +46,8 @@ All of this is defined in the art block near the top of `script.rpy`.
 ## Making it prettier (optional, later)
 
 - **Real portraits / backgrounds:** replace the `image bg station = ...` and
-  `image fig emy = ...` / `image fig kali = ...` lines with PNGs, e.g.
-  `image fig kali = "kali.png"`. Drop the PNGs into the `game/` folder. The
+  `image emy_fig = ...` / `image kali_fig = ...` lines with PNGs, e.g.
+  `image kali_fig = "kali.png"`. Drop the PNGs into the `game/` folder. The
   rain/mist/lightning overlay keeps working over real art automatically.
   - Emy: medium brown hair, scrappy/mossy layers.
   - Kali: short black hair, clear-framed round glasses.

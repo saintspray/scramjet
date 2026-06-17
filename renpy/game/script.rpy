@@ -53,8 +53,9 @@ image bg station = Transform(
 # Character figures, composited from simple parts so they read as people.
 #   Emy : medium brown hair, mossy coat.
 #   Kali: short black hair, clear glasses, dusk-violet coat.
+# NOTE: distinct image tags ("emy_fig" / "kali_fig") so BOTH stay on screen.
 # (defined with ATL so they gently "breathe" — note the offset timings.)
-image fig emy:
+image emy_fig:
     Composite(
         (110, 270),
         (7,  60),  Solid("#45503f", xysize=(96, 210)),   # coat
@@ -67,7 +68,7 @@ image fig emy:
         ease 2.3 yoffset -4
         ease 2.3 yoffset 0
         repeat
-image fig kali:
+image kali_fig:
     Composite(
         (110, 270),
         (7,  60),  Solid("#4a4250", xysize=(96, 210)),   # dusk-violet coat
@@ -206,8 +207,8 @@ label start:
     if renpy.loadable("audio/theme.ogg"):
         play music "audio/theme.ogg" fadein 3.0
 
-    show fig emy
-    show fig kali with dissolve
+    show emy_fig
+    show kali_fig with dissolve
 
     # --- OPENING (Kali POV; the conceit of the flashes is set up here) ------
     "The platform clock died at 11:54. I keep checking it anyway. Hope's a stubborn little muscle; mine never learned to quit."
