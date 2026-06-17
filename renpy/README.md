@@ -51,9 +51,11 @@ All of this is defined in the art block near the top of `script.rpy`.
   rain/mist/lightning overlay keeps working over real art automatically.
   - Emy: medium brown hair, scrappy/mossy layers.
   - Kali: short black hair, clear-framed round glasses.
-- **Music:** add a track to `game/` and uncomment/add `play music "song.ogg"`
-  near `label start`. (Ren'Py can't synthesize audio like the HTML version's
-  generated soundtrack — it needs an actual sound file.)
+- **Music:** the music is already wired up. Drop a looping track at
+  `game/audio/theme.ogg` and it plays automatically on startup (3s fade-in),
+  with a corner ♪ button to mute/unmute. No file = silence, no crash. See
+  `game/audio/PUT_MUSIC_HERE.txt` for free sources. (Ren'Py can't synthesize
+  audio like the HTML version — it needs an actual sound file.)
 
 ## Editing the story
 

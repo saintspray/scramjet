@@ -53,26 +53,33 @@ image bg station = Transform(
 # Character figures, composited from simple parts so they read as people.
 #   Emy : medium brown hair, mossy coat.
 #   Kali: short black hair, clear glasses, dusk-violet coat.
-image fig emy = Transform(
+# (defined with ATL so they gently "breathe" — note the offset timings.)
+image fig emy:
     Composite(
         (110, 270),
         (7,  60),  Solid("#45503f", xysize=(96, 210)),   # coat
         (28,  4),  Solid("#5a3f26", xysize=(54, 78)),    # brown hair (behind)
         (33, 10),  Solid("#d3a87f", xysize=(44, 56)),    # face
         (30, 10),  Solid("#5a3f26", xysize=(50, 17)),    # swept fringe
-    ),
-    xalign=0.30, yalign=1.0, zoom=1.05,
-)
-image fig kali = Transform(
+    )
+    xalign 0.30 yalign 1.0 zoom 1.05
+    block:
+        ease 2.3 yoffset -4
+        ease 2.3 yoffset 0
+        repeat
+image fig kali:
     Composite(
         (110, 270),
         (7,  60),  Solid("#4a4250", xysize=(96, 210)),   # dusk-violet coat
         (33, 12),  Solid("#dcb491", xysize=(44, 56)),    # face
         (30,  4),  Solid("#161620", xysize=(50, 26)),    # short black hair
         (34, 30),  Solid("#cfe0ee", xysize=(40, 4)),     # glasses bridge/frame
-    ),
-    xalign=0.70, yalign=1.0, zoom=1.05,
-)
+    )
+    xalign 0.70 yalign 1.0 zoom 1.05
+    block:
+        ease 2.7 yoffset -4
+        ease 2.7 yoffset 0
+        repeat
 
 # Full-screen cold wash used during Emy flashes (with a blurred glow).
 image flash_tint = Transform(Solid("#3a6abe"), alpha=0.22, blur=8)
@@ -104,6 +111,25 @@ image mist:
         linear 16.0 xoffset -70
         repeat
 
+# Slow amber dust / spores drifting down through the lantern light.
+image dust = SnowBlossom(
+    Transform(Solid("#d9a55b", xysize=(3, 3)), alpha=0.35),
+    count=40, border=20,
+    xspeed=(-18, 18), yspeed=(18, 45), fast=True,
+)
+
+# Soft vignette: a dark frame, blurred heavily so the edges fall into shadow.
+image vignette = Transform(
+    Composite(
+        (1280, 720),
+        (0,   0),    Solid("#000000", xysize=(1280, 150)),
+        (0,   570),  Solid("#000000", xysize=(1280, 150)),
+        (0,   0),    Solid("#000000", xysize=(170, 720)),
+        (1110, 0),   Solid("#000000", xysize=(170, 720)),
+    ),
+    blur=85, alpha=0.55,
+)
+
 # Distant lightning: long random waits, then a quick cold double-flash.
 image lightning:
     Solid("#9ab4dc")
@@ -126,10 +152,24 @@ image lightning:
 screen atmosphere():
     zorder 60
     add "lightning"
+    add "dust"
     add "rain"
     add "rain_near"
     add "mist"
     add Solid("#16263a") alpha 0.10        # unifying cool grade
+    add "vignette"                          # darken the edges last
+
+# Small music on/off button in the corner (uses Ren'Py's built-in mute).
+screen music_toggle():
+    zorder 70
+    textbutton "♪":
+        xalign 0.98 yalign 0.02
+        background None
+        padding (12, 10)
+        text_size 22
+        text_idle_color "#8d918d"
+        text_hover_color "#d9a55b"
+        action Preference("music mute", "toggle")
 
 
 # ----- STATE ----------------------------------------------------------------
@@ -159,6 +199,13 @@ label flash(line):
 label start:
     scene bg station with fade
     show screen atmosphere      # rain, mist, lightning, color grade (whole game)
+    show screen music_toggle    # corner ♪ button (mute/unmute)
+
+    # Soft music. Drop a track at  game/audio/theme.ogg  and it plays + loops.
+    # Guarded so the game still runs if you haven't added the file yet.
+    if renpy.loadable("audio/theme.ogg"):
+        play music "audio/theme.ogg" fadein 3.0
+
     show fig emy
     show fig kali with dissolve
 
