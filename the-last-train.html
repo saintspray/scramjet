@@ -6,634 +6,175 @@
 <title>The Last Train Never Came</title>
 <!--
   ============================================================================
-  THE LAST TRAIN NEVER CAME
-  A short narrative exploration game — a personal gift.
+  THE LAST TRAIN NEVER CAME  —  a walkable pixel-art narrative game
+  ----------------------------------------------------------------------------
+  You play as KALI. Walk through a ruined night train carriage, step up to
+  objects and to Emy, and talk. Now and then you slip into a cold "flash" of
+  Emy's unspoken thoughts. Three choices + a kiss lead to one of five endings.
 
-  Two girls, one ruined transit station, one long night.
-  Walk around, examine things, talk. Some things only get said in the dark.
+  Single self-contained HTML file. Canvas pixel rendering, no frameworks.
+  Controls:  ← →  or  A D  to walk.   ↑ / E / Space  to interact / continue.
+  Touch:     on-screen arrows + action button.
 
-  Built as a single self-contained HTML file. No build tools, no frameworks.
-  Everything you'd want to edit (dialogue, objects, endings) lives in the
-  DATA section near the top of the <script> block, clearly labelled.
+  All writing lives in the DATA section at the top of <script>. Edit freely.
   ============================================================================
 -->
 <style>
-  /* =========================================================================
-     THEME / VISUAL DIRECTION
-     Muted greens, rust, gray, faded amber. Dim, overgrown, abandoned.
-     ========================================================================= */
-  :root {
-    --bg-deep:    #0c100d;   /* near-black green, the dark of the station */
-    --bg-mid:     #161c17;
-    --rust:       #6e4329;
-    --rust-soft:  #8a5a3a;
-    --moss:       #4a5d44;
-    --moss-soft:  #6f8466;
-    --amber:      #d9a55b;   /* the one warm light in the room */
-    --amber-dim:  #9c7740;
-    --gray:       #8d918d;
-    --gray-dim:   #5a5f5a;
-    --paper:      #e7e2d4;   /* text */
-    --shadow:     rgba(0,0,0,0.6);
-    --glass:      rgba(14, 18, 15, 0.82);
-    --font: "Georgia", "Times New Roman", serif;
+  :root{
+    --amber:#d9a55b; --amber-dim:#9c7740; --moss-soft:#6f8466; --moss:#4a5d44;
+    --paper:#e7e2d4; --gray:#8d918d; --gray-dim:#5a5f5a; --blue:#9cc0e8;
+    --glass:rgba(10,15,16,0.88); --font:"Georgia","Times New Roman",serif;
   }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;background:#000;color:var(--paper);font-family:var(--font);
+    overflow:hidden;-webkit-font-smoothing:antialiased;user-select:none;
+    -webkit-tap-highlight-color:transparent;touch-action:none;}
+  #stage{position:absolute;inset:0;overflow:hidden;background:#05070a;}
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  /* The pixel canvas — scaled up crisply, centered, letterboxed. */
+  #game{position:absolute;inset:0;margin:auto;display:block;background:#05070a;}
 
-  html, body {
-    height: 100%;
-    background: #000;
-    color: var(--paper);
-    font-family: var(--font);
-    overflow: hidden;
-    -webkit-font-smoothing: antialiased;
-    user-select: none;
-    -webkit-tap-highlight-color: transparent;
-  }
+  /* ---------------- HUD ---------------- */
+  #hud{position:absolute;inset:0;z-index:20;pointer-events:none;}
+  #hint{position:absolute;top:12px;left:50%;transform:translateX(-50%);
+    color:var(--moss-soft);font-size:13px;letter-spacing:1px;font-style:italic;
+    text-align:center;max-width:80%;text-shadow:0 1px 4px #000;transition:opacity .4s;}
+  #loc{position:absolute;top:12px;left:14px;color:var(--gray);font-size:11px;
+    letter-spacing:2px;text-transform:uppercase;text-shadow:0 1px 3px #000;}
+  #music-toggle{position:absolute;top:8px;right:10px;pointer-events:auto;
+    background:var(--glass);color:var(--gray);border:1px solid var(--gray-dim);
+    border-radius:3px;padding:6px 10px;font-size:12px;cursor:pointer;font-family:var(--font);}
+  #music-toggle:hover{color:var(--amber);border-color:var(--amber-dim);}
+  #bond{position:absolute;top:34px;left:14px;display:flex;gap:5px;}
+  #bond .pip{width:7px;height:7px;border-radius:50%;background:var(--gray-dim);transition:all .4s;}
+  #bond .pip.on{background:var(--amber);box-shadow:0 0 7px rgba(217,165,91,.6);}
+  /* Inventory bar */
+  #inv{position:absolute;top:48px;left:14px;display:flex;gap:6px;pointer-events:auto;}
+  #inv .slot{width:34px;height:34px;border:1px solid rgba(111,132,102,.4);border-radius:4px;
+    background:rgba(10,15,16,0.7);display:flex;align-items:center;justify-content:center;
+    font-size:18px;cursor:pointer;transition:all .15s;}
+  #inv .slot:hover{border-color:var(--amber);background:rgba(217,165,91,.12);transform:translateY(-2px);}
+  #inv .slot.new{animation:slotpop .5s ease;}
+  @keyframes slotpop{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.2)}100%{transform:scale(1)}}
+  /* Pickup toast */
+  #toast{position:absolute;top:14px;left:50%;transform:translateX(-50%) translateY(-10px);
+    background:rgba(10,15,16,.9);border:1px solid var(--amber-dim);border-radius:3px;
+    color:var(--amber);padding:7px 14px;font-size:13px;letter-spacing:1px;opacity:0;
+    transition:all .3s;pointer-events:none;}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
-  /* The whole game lives in a fixed-aspect stage that scales to fit. */
-  #stage {
-    position: absolute;
-    inset: 0;
-    margin: auto;
-    width: 100%;
-    height: 100%;
-    max-width: 1100px;
-    background: var(--bg-deep);
-    overflow: hidden;
-  }
+  /* ---------------- Touch controls ---------------- */
+  #touch{position:absolute;inset:0;z-index:22;pointer-events:none;opacity:0;transition:opacity .3s;}
+  #touch.show{opacity:1;}
+  .tbtn{position:absolute;bottom:18px;width:64px;height:64px;border-radius:50%;
+    background:rgba(20,28,28,0.55);border:1px solid rgba(111,132,102,.5);
+    color:var(--paper);font-size:26px;display:flex;align-items:center;justify-content:center;
+    pointer-events:auto;}
+  .tbtn:active{background:rgba(217,165,91,.3);}
+  #t-left{left:18px;} #t-right{left:92px;} #t-act{right:18px;width:74px;height:74px;font-size:18px;letter-spacing:1px;}
 
-  /* ---- Layered atmospheric background (CSS-only "art") ------------------- */
-  .bg-layer { position: absolute; inset: 0; pointer-events: none; }
+  /* ---------------- Dialogue ---------------- */
+  #dialogue{position:absolute;left:0;right:0;bottom:0;z-index:30;pointer-events:auto;
+    padding:50px 16px 18px;background:linear-gradient(180deg,transparent,var(--glass) 28%);
+    transition:opacity .3s,transform .3s;}
+  #dialogue.hidden{opacity:0;pointer-events:none;transform:translateY(20px);}
+  #dialogue-inner{max-width:720px;margin:0 auto;background:var(--glass);
+    border:1px solid rgba(111,132,102,.35);border-radius:4px;padding:16px 20px 18px;
+    box-shadow:0 -4px 26px rgba(0,0,0,.6);position:relative;}
+  #dialogue-inner.pop{animation:settle .3s ease;}
+  @keyframes settle{0%{transform:translateY(4px)}100%{transform:translateY(0)}}
+  #speaker{position:absolute;top:-13px;left:16px;background:#141a16;
+    border:1px solid rgba(111,132,102,.4);padding:3px 12px;border-radius:2px;
+    font-size:13px;letter-spacing:2px;}
+  #speaker.emy{color:var(--moss-soft);border-color:var(--moss);}
+  #speaker.kali{color:var(--amber);border-color:var(--amber-dim);}
+  #speaker.narr{color:var(--gray);border-color:var(--gray-dim);font-style:italic;}
+  #speaker.flash{color:var(--blue);border-color:#4a6c94;background:#101822;font-style:italic;}
+  #line{min-height:58px;margin-top:6px;font-size:clamp(15px,2.4vw,17px);line-height:1.65;}
+  #line .narr-line{color:var(--gray);font-style:italic;}
+  #line .flash-line{color:#b6d2ee;font-style:italic;text-shadow:0 0 12px rgba(120,165,215,.4);}
+  #choices{display:flex;flex-direction:column;gap:7px;margin-top:12px;}
+  .choice{pointer-events:auto;cursor:pointer;text-align:left;background:rgba(74,93,68,.10);
+    color:var(--paper);border:1px solid rgba(111,132,102,.3);border-radius:3px;
+    padding:10px 13px;font-family:var(--font);font-size:clamp(14px,2.2vw,15px);line-height:1.4;
+    transition:all .15s;}
+  .choice:hover,.choice:focus-visible{background:rgba(217,165,91,.12);border-color:var(--amber);
+    color:var(--amber);outline:none;transform:translateX(3px);}
+  #continue{position:absolute;right:14px;bottom:10px;color:var(--amber-dim);font-size:12px;
+    animation:bob 1.6s ease-in-out infinite;}
+  #continue.gone{display:none;}
+  @keyframes bob{0%,100%{transform:translateY(0);opacity:.7}50%{transform:translateY(3px);opacity:1}}
 
-  /* Cold night sky bleeding through a broken ceiling — a liminal twilight that
-     leans Saihate-blue at the top, then sinks into ruined green-black. */
-  #bg-sky {
-    background:
-      linear-gradient(180deg, #1a2740 0%, #16202e 18%, #0d1411 48%, #080b09 100%),
-      radial-gradient(120% 80% at 70% -10%, rgba(60,90,130,0.35) 0%, transparent 45%);
-  }
+  /* ---------------- Screens ---------------- */
+  .screen{position:absolute;inset:0;z-index:40;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;text-align:center;padding:30px;transition:opacity .8s;}
+  .hidden{opacity:0;pointer-events:none;} .gone{display:none!important;}
+  #title-screen{background:radial-gradient(120% 95% at 50% 30%,rgba(20,32,26,.5),rgba(6,9,9,.9) 85%);}
+  #title-screen>*{animation:riseIn 1.1s ease both;}
+  #title-screen h1{font-size:clamp(26px,6vw,50px);font-weight:normal;letter-spacing:3px;
+    max-width:14ch;line-height:1.2;text-shadow:0 0 24px rgba(217,165,91,.25);animation-delay:.2s;}
+  #title-screen .sub{margin-top:12px;color:var(--amber-dim);letter-spacing:4px;font-size:13px;
+    text-transform:uppercase;animation-delay:.7s;}
+  #title-screen .dedication{margin-top:24px;color:var(--gray);font-style:italic;font-size:14px;
+    max-width:30ch;line-height:1.6;animation-delay:1.2s;}
+  @keyframes riseIn{from{opacity:0;transform:translateY(16px);filter:blur(4px)}
+    to{opacity:1;transform:translateY(0);filter:blur(0)}}
+  .btn{margin-top:30px;cursor:pointer;background:transparent;color:var(--paper);
+    border:1px solid var(--moss-soft);border-radius:2px;padding:12px 26px;font-family:var(--font);
+    font-size:15px;letter-spacing:2px;transition:all .25s;animation-delay:1.8s;}
+  .btn:hover{background:rgba(111,132,102,.15);border-color:var(--amber);color:var(--amber);}
+  #ending-screen{background:radial-gradient(120% 90% at 50% 40%,#13201a,#050706 85%);}
+  #ending-screen h2{font-size:clamp(22px,5vw,36px);font-weight:normal;letter-spacing:2px;
+    color:var(--amber);margin-bottom:18px;}
+  #ending-screen .ending-text{max-width:46ch;line-height:1.9;font-style:italic;
+    font-size:clamp(15px,2.3vw,17px);}
+  #ending-screen .ending-text span{display:inline;opacity:0;animation:fadeUp 1.6s ease forwards;}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  #ending-screen .ending-tag{margin-top:22px;color:var(--gray);letter-spacing:3px;
+    text-transform:uppercase;font-size:12px;}
+  #fader{position:absolute;inset:0;z-index:50;background:#000;opacity:0;pointer-events:none;
+    transition:opacity .7s;}
+  #fader.show{opacity:1;}
 
-  /* Lo-fi ordered-dither / pixel grid — the texture that makes it feel like a
-     small, hand-made twilight game rather than crisp vector art. */
-  #bg-dither {
-    opacity: 0.16; mix-blend-mode: overlay;
-    background-image:
-      repeating-linear-gradient(0deg,  rgba(0,0,0,0.6) 0 1px, transparent 1px 2px),
-      repeating-linear-gradient(90deg, rgba(0,0,0,0.6) 0 1px, transparent 1px 2px);
-    background-size: 3px 3px;
-  }
-
-  /* Rain falling through the broken roof. Two layers at different speeds/angles
-     for depth. Built from thin repeating gradients scrolled downward. */
-  #bg-rain {
-    opacity: 0.22; mix-blend-mode: screen;
-    background-image: repeating-linear-gradient(
-      102deg, transparent 0 7px, rgba(170,195,220,0.7) 7px 8px, transparent 8px 14px);
-    background-size: 14px 110px;
-    animation: rainfall 0.55s linear infinite;
-  }
-  #bg-rain2 {
-    opacity: 0.14; mix-blend-mode: screen;
-    background-image: repeating-linear-gradient(
-      99deg, transparent 0 11px, rgba(150,175,205,0.6) 11px 12px, transparent 12px 22px);
-    background-size: 22px 150px;
-    animation: rainfall 0.9s linear infinite;
-  }
-  @keyframes rainfall {
-    from { background-position: 0 0; }
-    to   { background-position: -24px 150px; }
-  }
-
-  /* Cold mist pooling along the floor, drifting slowly sideways. */
-  #bg-mist {
-    background:
-      radial-gradient(70% 30% at 30% 102%, rgba(120,140,135,0.18), transparent 70%),
-      radial-gradient(80% 34% at 75% 104%, rgba(110,130,128,0.16), transparent 70%);
-    animation: mistdrift 26s ease-in-out infinite;
-  }
-  @keyframes mistdrift {
-    0%,100% { transform: translateX(-3%); }
-    50%     { transform: translateX(3%); }
-  }
-
-  /* Distant lightning: mostly invisible, with rare cold flashes (JS triggers
-     the .strike class for a quick double-blink). */
-  #bg-lightning {
-    background: linear-gradient(180deg, rgba(150,180,220,0.5), transparent 55%);
-    opacity: 0; mix-blend-mode: screen;
-  }
-  #bg-lightning.strike { animation: lightning 1.1s ease-out; }
-  @keyframes lightning {
-    0%   { opacity: 0; }
-    4%   { opacity: 0.55; }
-    9%   { opacity: 0.05; }
-    14%  { opacity: 0.7; }
-    24%  { opacity: 0; }
-    100% { opacity: 0; }
-  }
-
-  /* Unifying color grade — a cool teal/amber wash that pulls the whole palette
-     together into one moody, slightly-desaturated picture. */
-  #bg-grade {
-    mix-blend-mode: soft-light; opacity: 0.6;
-    background: linear-gradient(180deg, #2a4a6e 0%, #1c2a26 55%, #3a2a1c 100%);
-  }
-  /* Distant overgrowth silhouette */
-  #bg-growth {
-    background:
-      radial-gradient(60% 40% at 12% 110%, rgba(40,60,38,0.55), transparent 60%),
-      radial-gradient(50% 35% at 88% 115%, rgba(34,52,34,0.5), transparent 60%),
-      radial-gradient(40% 30% at 50% 120%, rgba(28,44,30,0.6), transparent 60%);
-  }
-  /* The single amber lantern glow, animated faint flicker */
-  #bg-glow {
-    background: radial-gradient(28% 34% at 50% 64%, rgba(217,165,91,0.20), transparent 70%);
-    animation: flicker 6s ease-in-out infinite;
-  }
-  @keyframes flicker {
-    0%,100% { opacity: 0.85; }
-    45%     { opacity: 1;    }
-    50%     { opacity: 0.7;  }
-    55%     { opacity: 0.95; }
-  }
-  /* Drifting dust / spores */
-  #bg-dust { opacity: 0.5; mix-blend-mode: screen;
-    background-image:
-      radial-gradient(1.5px 1.5px at 20% 30%, rgba(217,165,91,0.5), transparent),
-      radial-gradient(1.5px 1.5px at 70% 60%, rgba(180,200,170,0.4), transparent),
-      radial-gradient(1px 1px at 40% 80%, rgba(217,165,91,0.4), transparent),
-      radial-gradient(1px 1px at 85% 25%, rgba(180,200,170,0.35), transparent),
-      radial-gradient(1.5px 1.5px at 55% 45%, rgba(217,165,91,0.4), transparent);
-    background-size: 300px 300px;
-    animation: drift 24s linear infinite;
-  }
-  @keyframes drift {
-    from { background-position: 0 0, 0 0, 0 0, 0 0, 0 0; }
-    to   { background-position: -120px -300px, 80px -300px, -60px -300px, 100px -300px, -90px -300px; }
-  }
-  /* Worn enamel station sign, hanging crooked from a dead ceiling. */
-  #station-sign {
-    position: absolute; top: 12%; left: 50%;
-    transform: translateX(-50%) rotate(-1.2deg);
-    text-align: center; pointer-events: none; z-index: 2;
-    padding: 8px 22px;
-    background: linear-gradient(180deg, #21302c, #161f1c);
-    border: 2px solid #33453d; border-radius: 3px;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.55), inset 0 0 14px rgba(0,0,0,0.5);
-    opacity: 0.78;
-    animation: signSway 9s ease-in-out infinite;
-    transform-origin: top center;
-  }
-  #station-sign .sign-line {
-    font-size: clamp(16px, 3.4vw, 26px); letter-spacing: 6px;
-    color: #c8cfc4; text-shadow: 0 0 10px rgba(217,165,91,0.25), 0 2px 3px #000;
-  }
-  #station-sign .sign-sub {
-    margin-top: 3px; font-size: clamp(8px, 1.6vw, 11px); letter-spacing: 3px;
-    color: var(--amber-dim); text-transform: lowercase;
-  }
-  @keyframes signSway {
-    0%,100% { transform: translateX(-50%) rotate(-1.2deg); }
-    50%     { transform: translateX(-50%) rotate(0.6deg); }
-  }
-
-  /* Heavy vignette to keep everything intimate and dim */
-  #bg-vignette {
-    background: radial-gradient(110% 90% at 50% 50%, transparent 50%, rgba(0,0,0,0.7) 100%);
-  }
-  /* Faint scanline grit */
-  #bg-grit {
-    opacity: 0.06;
-    background: repeating-linear-gradient(0deg, #fff 0 1px, transparent 1px 3px);
-  }
-
-  /* =========================================================================
-     INTERACTIVE OBJECTS (hotspots) on the map
-     Each is a soft glowing marker. Visual = small CSS emblem + pulsing ring.
-     ========================================================================= */
-  #hotspots { position: absolute; inset: 0; }
-  .hotspot {
-    position: absolute;
-    transform: translate(-50%, -50%);
-    width: 64px; height: 64px;
-    border: none; background: transparent;
-    cursor: pointer; color: var(--paper);
-    display: flex; align-items: center; justify-content: center;
-    transition: transform 0.2s ease;
-  }
-  .hotspot:focus { outline: none; }
-  .hotspot:hover, .hotspot:focus-visible { transform: translate(-50%, -50%) scale(1.12); }
-  .hotspot .dot {
-    width: 14px; height: 14px; border-radius: 50%;
-    background: var(--amber);
-    box-shadow: 0 0 12px 3px rgba(217,165,91,0.55);
-    animation: dotFloat 3.2s ease-in-out infinite;
-  }
-  @keyframes dotFloat {
-    0%,100% { transform: translateY(0);    box-shadow: 0 0 12px 3px rgba(217,165,91,0.45); }
-    50%     { transform: translateY(-3px); box-shadow: 0 0 16px 5px rgba(217,165,91,0.65); }
-  }
-  .hotspot .ring {
-    position: absolute; width: 14px; height: 14px; border-radius: 50%;
-    border: 1px solid rgba(217,165,91,0.6);
-    animation: pulse 2.4s ease-out infinite;
-  }
-  @keyframes pulse {
-    0%   { transform: scale(1);   opacity: 0.8; }
-    100% { transform: scale(3.4); opacity: 0;   }
-  }
-  .hotspot .label {
-    position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
-    margin-top: 2px; font-size: 12px; letter-spacing: 1px;
-    color: var(--gray); white-space: nowrap;
-    text-shadow: 0 1px 3px #000; opacity: 0; transition: opacity 0.2s;
-  }
-  .hotspot:hover .label, .hotspot:focus-visible .label { opacity: 1; }
-  .hotspot.visited .dot { background: var(--gray-dim); box-shadow: none; }
-  .hotspot.visited .ring { display: none; }
-
-  /* The two characters standing in the space (simple stylized figures) */
-  .figure {
-    position: absolute; bottom: 16%; transform: translateX(-50%);
-    width: 80px; height: 200px; pointer-events: none;
-    opacity: 0.86; filter: brightness(0.7) saturate(0.8);
-    transition: opacity 0.5s ease, filter 0.5s ease, transform 0.5s ease;
-  }
-  /* slow idle breathing — each figure offset so they aren't in sync */
-  #fig-emy  { left: 38%; animation: breathe 4.6s ease-in-out infinite; }
-  #fig-kali { left: 62%; animation: breathe 5.3s ease-in-out infinite -1.2s; }
-  @keyframes breathe {
-    0%,100% { transform: translateX(-50%) translateY(0)     scaleY(1);     }
-    50%     { transform: translateX(-50%) translateY(-3px)  scaleY(1.012); }
-  }
-  /* the one who's currently speaking steps into the light */
-  .figure.speaking {
-    opacity: 1; filter: brightness(1.25) saturate(1.1)
-      drop-shadow(0 0 16px rgba(217,165,91,0.35));
-    transform: translateX(-50%) translateY(-6px) scale(1.04);
-    z-index: 5;
-  }
-  .figure .head { position:absolute; top:6px; left:50%; transform:translateX(-50%);
-    width: 30px; height: 32px; border-radius: 48% 48% 46% 46%; z-index: 2;
-    transition: box-shadow 0.4s ease; }
-  .figure.speaking .head { box-shadow: 0 0 14px 2px rgba(217,165,91,0.4); }
-  .figure .body { position:absolute; top:30px; left:50%; transform:translateX(-50%);
-    width: 44px; height: 148px; border-radius: 22px 22px 8px 8px; z-index: 1; }
-
-  /* --- Emy: medium-length brown hair, scrappy survivor layers --- */
-  #fig-emy  .head { background: #d3a87f; }            /* warm skin */
-  #fig-emy  .hair-back {                              /* hair framing & falling past jaw */
-    position:absolute; top:2px; left:50%; transform:translateX(-50%);
-    width:42px; height:58px; z-index:0;
-    background: linear-gradient(180deg, #6b4a2e 0%, #543820 70%, #3f2a18 100%);
-    border-radius: 22px 22px 16px 16px;
-  }
-  #fig-emy  .fringe {                                 /* swept fringe over the brow */
-    position:absolute; top:4px; left:50%; transform:translateX(-50%) rotate(-3deg);
-    width:34px; height:15px; z-index:3;
-    background: linear-gradient(180deg, #6b4a2e, #543820);
-    border-radius: 16px 16px 10px 10px;
-  }
-  #fig-emy  .body { background: linear-gradient(180deg, #45503f, #2c3328); } /* mossy jacket */
-
-  /* --- Kali: short black hair, clear-framed glasses, calmer palette --- */
-  #fig-kali .head { background: #dcb491; }            /* warm skin */
-  #fig-kali .hair-cap {                               /* cropped black hair, neat */
-    position:absolute; top:2px; left:50%; transform:translateX(-50%);
-    width:34px; height:22px; z-index:3;
-    background: linear-gradient(180deg, #1d1d22, #0e0e12);
-    border-radius: 18px 18px 9px 9px;
-  }
-  #fig-kali .glasses {                                /* clear frames, faint glass glint */
-    position:absolute; top:18px; left:50%; transform:translateX(-50%);
-    width:26px; height:2px; background:#cfe0ee; z-index:4; border-radius:2px;
-  }
-  #fig-kali .glasses::before, #fig-kali .glasses::after {
-    content:""; position:absolute; top:-4px; width:9px; height:9px; border-radius:50%;
-    border:1.5px solid #d8eaf7; background:rgba(185,215,240,0.18);
-    box-shadow:0 0 4px rgba(200,225,245,0.45);
-  }
-  #fig-kali .glasses::before { left:-1px; }
-  #fig-kali .glasses::after  { right:-1px; }
-  #fig-kali .body { background: linear-gradient(180deg, #4a4250, #2f2a38); } /* dusk-violet coat */
-
-  /* =========================================================================
-     SCREENS (title / game / ending)
-     ========================================================================= */
-  .screen {
-    position: absolute; inset: 0; z-index: 30;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    text-align: center; padding: 32px;
-    transition: opacity 0.8s ease;
-  }
-  .hidden { opacity: 0; pointer-events: none; }
-  .gone   { display: none !important; }
-
-  /* ---- Title screen ----------------------------------------------------- */
-  /* Semi-transparent so the rainy station + the two silhouettes show behind. */
-  #title-screen {
-    background: radial-gradient(120% 95% at 50% 28%,
-      rgba(20,32,26,0.55), rgba(8,11,9,0.86) 85%);
-  }
-  /* staggered rise-in for each title element */
-  #title-screen > * { animation: riseIn 1.1s ease both; }
-  #title-screen h1          { animation-delay: 0.2s; }
-  #title-screen .sub        { animation-delay: 0.7s; }
-  #title-screen .dedication { animation-delay: 1.3s; }
-  #title-screen .btn        { animation-delay: 1.9s; }
-  @keyframes riseIn {
-    from { opacity: 0; transform: translateY(16px); filter: blur(4px); }
-    to   { opacity: 1; transform: translateY(0);    filter: blur(0);   }
-  }
-  #title-screen h1 {
-    font-size: clamp(28px, 6vw, 52px); font-weight: normal; letter-spacing: 3px;
-    color: var(--paper); line-height: 1.2; max-width: 14ch;
-    text-shadow: 0 0 24px rgba(217,165,91,0.25);
-    animation: riseIn 1.1s ease both, titleGlow 7s ease-in-out infinite 2s !important;
-  }
-  @keyframes titleGlow {
-    0%,100% { text-shadow: 0 0 24px rgba(217,165,91,0.18); }
-    50%     { text-shadow: 0 0 34px rgba(217,165,91,0.40); }
-  }
-  #title-screen .sub {
-    margin-top: 14px; color: var(--amber-dim); letter-spacing: 4px;
-    font-size: 13px; text-transform: uppercase;
-  }
-  #title-screen .dedication {
-    margin-top: 28px; color: var(--gray); font-style: italic;
-    font-size: 14px; max-width: 30ch; line-height: 1.6;
-  }
-  .btn {
-    margin-top: 34px; cursor: pointer;
-    background: transparent; color: var(--paper);
-    border: 1px solid var(--moss-soft); border-radius: 2px;
-    padding: 12px 28px; font-family: var(--font); font-size: 15px;
-    letter-spacing: 2px; transition: all 0.25s ease;
-  }
-  .btn:hover { background: rgba(111,132,102,0.15); border-color: var(--amber); color: var(--amber); }
-
-  /* ---- Ending screen ---------------------------------------------------- */
-  #ending-screen { background: radial-gradient(120% 90% at 50% 40%, #14201a, #060807 85%); }
-  #ending-screen h2 {
-    font-size: clamp(22px, 5vw, 38px); font-weight: normal; letter-spacing: 2px;
-    color: var(--amber); margin-bottom: 20px;
-    animation: riseIn 1.4s ease both 0.3s;
-  }
-  #ending-screen .ending-text {
-    max-width: 46ch; line-height: 1.9; color: var(--paper);
-    font-size: clamp(15px, 2.4vw, 18px); font-style: italic;
-  }
-  /* each paragraph of the ending fades up in sequence (delays set in JS) */
-  #ending-screen .ending-text span { display: inline; opacity: 0;
-    animation: fadeUp 1.6s ease forwards; }
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(10px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-  #ending-screen .ending-tag {
-    margin-top: 26px; color: var(--gray); letter-spacing: 3px;
-    text-transform: uppercase; font-size: 12px;
-    animation: fadeUp 2s ease forwards 2.4s; opacity: 0;
-  }
-  #ending-screen .btn { animation: fadeUp 1.6s ease forwards 3.2s; opacity: 0; }
-
-  /* =========================================================================
-     DIALOGUE / HUD
-     ========================================================================= */
-  #hud { position: absolute; inset: 0; z-index: 20; pointer-events: none; }
-
-  /* Location title, top-left */
-  #location {
-    position: absolute; top: 16px; left: 18px;
-    color: var(--gray); letter-spacing: 3px; font-size: 12px;
-    text-transform: uppercase; text-shadow: 0 1px 4px #000;
-  }
-
-  /* Hint line, center top — gentle guidance */
-  #hint {
-    position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
-    color: var(--moss-soft); font-size: 12px; letter-spacing: 1px;
-    font-style: italic; text-align: center; max-width: 60%;
-    text-shadow: 0 1px 4px #000; transition: opacity 0.4s;
-  }
-
-  /* Music toggle, top-right */
-  #music-toggle {
-    position: absolute; top: 12px; right: 14px; pointer-events: auto;
-    background: var(--glass); color: var(--gray);
-    border: 1px solid var(--gray-dim); border-radius: 2px;
-    padding: 7px 12px; font-size: 12px; letter-spacing: 1px;
-    cursor: pointer; font-family: var(--font);
-  }
-  #music-toggle:hover { color: var(--amber); border-color: var(--amber-dim); }
-
-  /* Dialogue box, bottom */
-  #dialogue {
-    position: absolute; left: 0; right: 0; bottom: 0;
-    pointer-events: auto;
-    background: linear-gradient(180deg, transparent, var(--glass) 22%);
-    padding: 60px 22px 26px;
-    transition: opacity 0.35s ease, transform 0.35s ease;
-    transform: translateY(0);
-  }
-  #dialogue.hidden { opacity: 0; pointer-events: none; transform: translateY(24px); }
-
-  #dialogue-inner {
-    max-width: 760px; margin: 0 auto;
-    background: var(--glass);
-    border: 1px solid rgba(111,132,102,0.35);
-    border-radius: 4px;
-    padding: 18px 22px 20px;
-    box-shadow: 0 -4px 30px var(--shadow);
-    position: relative;
-  }
-  /* a fresh line gives the box a tiny "settle" pulse */
-  #dialogue-inner.pop { animation: settle 0.32s ease; }
-  @keyframes settle {
-    0%   { transform: translateY(4px) scale(0.995); }
-    60%  { transform: translateY(-1px) scale(1.004); }
-    100% { transform: translateY(0) scale(1); }
-  }
-  /* the speaker name tag pops when it changes */
-  #speaker.change { animation: tagpop 0.3s ease; }
-  @keyframes tagpop {
-    0% { transform: translateY(3px) scale(0.9); opacity: 0; }
-    100% { transform: translateY(0) scale(1); opacity: 1; }
-  }
-  #speaker {
-    position: absolute; top: -14px; left: 18px;
-    background: var(--bg-mid); border: 1px solid rgba(111,132,102,0.4);
-    padding: 3px 14px; border-radius: 2px;
-    font-size: 14px; letter-spacing: 2px;
-  }
-  #speaker.emy  { color: var(--moss-soft);  border-color: var(--moss); }
-  #speaker.kali { color: var(--amber);      border-color: var(--amber-dim); }
-  #speaker.narr { color: var(--gray);       border-color: var(--gray-dim); font-style: italic; }
-  /* Emy's unspoken interior — cold blue, set apart from everything else */
-  #speaker.flash {
-    color: #9cc0e8; border-color: #4a6c94; font-style: italic; letter-spacing: 1px;
-    background: #101822;
-  }
-
-  #line {
-    min-height: 64px; margin-top: 8px;
-    font-size: clamp(15px, 2.5vw, 18px); line-height: 1.7;
-    color: var(--paper);
-  }
-  #line .narr-line { color: var(--gray); font-style: italic; }
-  /* the flash text reads like a thought, not speech */
-  #line .flash-line {
-    color: #b6d2ee; font-style: italic;
-    text-shadow: 0 0 14px rgba(120,165,215,0.45);
-  }
-
-  /* Choices */
-  #choices { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
-  .choice {
-    pointer-events: auto; cursor: pointer; text-align: left;
-    background: rgba(74,93,68,0.10); color: var(--paper);
-    border: 1px solid rgba(111,132,102,0.3); border-radius: 3px;
-    padding: 11px 15px; font-family: var(--font);
-    font-size: clamp(14px, 2.3vw, 16px); line-height: 1.45;
-    transition: all 0.18s ease;
-  }
-  .choice:hover, .choice:focus-visible {
-    background: rgba(217,165,91,0.12); border-color: var(--amber);
-    color: var(--amber); outline: none; transform: translateX(3px);
-  }
-
-  /* Continue affordance */
-  #continue {
-    position: absolute; right: 16px; bottom: 12px;
-    color: var(--amber-dim); font-size: 13px; letter-spacing: 1px;
-    animation: bob 1.6s ease-in-out infinite;
-  }
-  #continue.gone { display: none; }
-  @keyframes bob { 0%,100% { transform: translateY(0); opacity:0.7;} 50% { transform: translateY(3px); opacity:1;} }
-
-  /* Tiny "feeling" meter dots — quiet feedback on warmth (no numbers shown) */
-  #bond { position: absolute; bottom: 14px; left: 18px; display: flex; gap: 5px; pointer-events:none; }
-  #bond .pip { width: 7px; height: 7px; border-radius: 50%; background: var(--gray-dim); transition: all .4s; }
-  #bond .pip.on { background: var(--amber); box-shadow: 0 0 8px rgba(217,165,91,0.6); }
-
-  /* =========================================================================
-     EMY-POV FLASH — the game is played as Kali, but now and then we slip into
-     Emy's head. When that happens, the warm amber world goes cold and blue for
-     a beat, and her unspoken thoughts surface.
-     ========================================================================= */
-  #flash-fx {
-    position: absolute; inset: 0; z-index: 15; pointer-events: none; opacity: 0;
-    background:
-      radial-gradient(120% 90% at 50% 42%, rgba(90,125,180,0.28), rgba(18,28,52,0.6) 100%);
-    mix-blend-mode: screen;
-  }
-  #flash-fx.fire { animation: flashPulse 2.4s ease; }
-  @keyframes flashPulse {
-    0%   { opacity: 0; }
-    8%   { opacity: 0.9; }   /* first blink */
-    16%  { opacity: 0.35; }
-    24%  { opacity: 1; }     /* settle into the flash */
-    85%  { opacity: 0.8; }
-    100% { opacity: 0; }
-  }
-  /* Emy's figure when we're inside her head: cold-lit, not amber-lit */
-  .figure.flashing {
-    filter: brightness(1.1) saturate(0.55) hue-rotate(-12deg)
-      drop-shadow(0 0 20px rgba(120,160,210,0.55)) !important;
-  }
-
-  /* Fade-to-black overlay for transitions */
-  #fader {
-    position: absolute; inset: 0; z-index: 40; background: #000;
-    opacity: 0; pointer-events: none; transition: opacity 0.7s ease;
-  }
-  #fader.show { opacity: 1; }
-
-  /* Mobile niceties */
-  @media (max-width: 560px) {
-    #hint { font-size: 11px; max-width: 52%; }
-    .hotspot { width: 56px; height: 56px; }
-    #dialogue { padding: 50px 12px 18px; }
-    #dialogue-inner { padding: 16px 16px 18px; }
-    .figure { width: 60px; height: 150px; bottom: 18%; }
-    .figure .body { height: 110px; }
-  }
+  @media(max-width:560px){#hint{font-size:11px;max-width:70%}#dialogue{padding:42px 10px 14px}}
 </style>
 </head>
 <body>
 <div id="stage">
+  <canvas id="game" width="960" height="420"></canvas>
 
-  <!-- ============ ATMOSPHERIC BACKGROUND LAYERS ("art") ============ -->
-  <div id="bg-sky"      class="bg-layer"></div>
-  <div id="bg-growth"   class="bg-layer"></div>
-  <div id="bg-glow"     class="bg-layer"></div>
-  <div id="bg-dust"     class="bg-layer"></div>
-  <div id="bg-rain"     class="bg-layer"></div>
-  <div id="bg-rain2"    class="bg-layer"></div>
-  <div id="bg-mist"     class="bg-layer"></div>
-  <div id="bg-lightning" class="bg-layer"></div>
-  <div id="bg-dither"   class="bg-layer"></div>
-  <div id="bg-grade"    class="bg-layer"></div>
-  <div id="bg-grit"     class="bg-layer"></div>
-
-  <!-- Worn hanging station sign — the "end of the line" motif -->
-  <div id="station-sign">
-    <div class="sign-line">WELLS&nbsp;END</div>
-    <div class="sign-sub">━━ end of the line ━━</div>
-  </div>
-
-  <!-- The two figures, always present in the room.
-       Emy: medium brown hair, scrappy. Kali: short black hair + clear glasses. -->
-  <div id="fig-emy"  class="figure">
-    <div class="hair-back"></div><div class="head"></div>
-    <div class="fringe"></div><div class="body"></div>
-  </div>
-  <div id="fig-kali" class="figure">
-    <div class="head"></div><div class="hair-cap"></div>
-    <div class="glasses"></div><div class="body"></div>
-  </div>
-
-  <!-- ============ INTERACTIVE OBJECTS ============ -->
-  <div id="hotspots"></div>
-
-  <div id="bg-vignette" class="bg-layer"></div>
-
-  <!-- Emy-POV "flash" overlay: a cold blue wash when we slip into her head -->
-  <div id="flash-fx"></div>
-
-  <!-- ============ HUD ============ -->
   <div id="hud">
-    <div id="location">Wells End Station — after midnight</div>
-    <div id="hint">Tap the glowing points to look around. Talk when you're ready.</div>
-    <button id="music-toggle" aria-label="Toggle music">♪ music: off</button>
-    <div id="bond">
-      <div class="pip"></div><div class="pip"></div><div class="pip"></div>
-      <div class="pip"></div><div class="pip"></div>
-    </div>
+    <div id="loc">Carriage 3 — after midnight</div>
+    <div id="hint"></div>
+    <button id="music-toggle">♪ music: off</button>
+    <div id="bond"><div class="pip"></div><div class="pip"></div><div class="pip"></div><div class="pip"></div><div class="pip"></div></div>
+    <div id="inv"></div>
+    <div id="toast"></div>
   </div>
 
-  <!-- ============ DIALOGUE BOX ============ -->
+  <div id="touch">
+    <div class="tbtn" id="t-left">◄</div>
+    <div class="tbtn" id="t-right">►</div>
+    <div class="tbtn" id="t-act">E</div>
+  </div>
+
   <div id="dialogue" class="hidden">
     <div id="dialogue-inner">
       <div id="speaker" class="narr">—</div>
       <div id="line"></div>
       <div id="choices"></div>
-      <div id="continue">tap to continue ▸</div>
+      <div id="continue">tap / E ▸</div>
     </div>
   </div>
 
-  <!-- ============ TITLE SCREEN ============ -->
   <div id="title-screen" class="screen">
     <h1>The Last Train Never Came</h1>
     <div class="sub">a quiet night, a long way from anywhere</div>
-    <p class="dedication">For someone who makes the dark feel survivable.<br>Stay a while. There's no hurry here.</p>
-    <button class="btn" id="start-btn">Step inside</button>
+    <p class="dedication">For someone who makes the dark feel survivable.<br>
+      Move with the arrows. Step close to things, and to her.</p>
+    <button class="btn" id="start-btn">Step aboard</button>
   </div>
 
-  <!-- ============ ENDING SCREEN ============ -->
   <div id="ending-screen" class="screen gone">
     <h2 id="ending-title"></h2>
     <p class="ending-text" id="ending-body"></p>
@@ -646,26 +187,11 @@
 
 <script>
 /* ===========================================================================
-   THE LAST TRAIN NEVER CAME — game logic
-   ---------------------------------------------------------------------------
-   HOW TO EDIT THE STORY:
-   Everything writable lives in the DATA section directly below.
-     • OBJECTS[]   — the interactive things in the room + their dialogue.
-     • OPENING[]   — the intro beat when the game starts.
-     • CHOICES     — the three branching moments (object: door, fire, hands).
-     • ENDINGS{}   — the three endings + the logic that picks one.
-   Speaker tags: "emy", "kali", "narr" (narration). Use "you?" pauses freely.
+   1–4. STORY DATA  (edit text here; speakers: emy / kali / narr / flash)
    =========================================================================== */
-
-/* ---------------------------------------------------------------------------
-   1. OPENING — plays once when you "Step inside"
-   --------------------------------------------------------------------------- */
-// Note on perspective: this night is told as KALI. The plain narration (❖) is
-// her voice, her lens. The cold "EMY — unspoken" lines are FLASHES — moments
-// where the wall between them thins and we glimpse what Emy will never say.
 const OPENING = [
   { who: "narr",  text: "The platform clock died at 11:54. I keep checking it anyway. Hope's a stubborn little muscle; mine never learned to quit." },
-  { who: "narr",  text: "Rain on a roof that's mostly gone now. Moss in the seams of the tiles. And her — Emy — three steps ahead of me, the way she always walks. Close enough to protect. Far enough to bolt." },
+  { who: "narr",  text: "Rain on a roof that's mostly gone now. Moss in the seams of the tiles. And her — Emy — a few steps down the carriage, the way she always keeps. Close enough to protect. Far enough to bolt." },
   { who: "kali",  text: "Well. The schedule says the last train left a long time before either of us was born." },
   { who: "emy",   text: "Then why'd you read the schedule." },
   { who: "kali",  text: "Hope's a hard habit." },
@@ -674,22 +200,11 @@ const OPENING = [
   { who: "narr",  text: "There it is again. That half-second where I swear I can feel the inside of her — like the wall's got a hairline crack and the light leaks through before she patches it." },
   { who: "kali",  text: "We're stuck here till the light. Might as well get to know the place." },
   { who: "emy",   text: "...Fine. But I'm not singing campfire songs." },
-  { who: "narr",  text: "(I'm Kali. This is my night to walk — touch what glows, talk when I'm ready. And every so often I'll catch a flash of her. The parts she keeps behind her teeth.)" },
+  { who: "narr",  text: "(Walk the carriage. Step up to things and press LOOK. Talk to her when you're ready. And every so often I'll catch a flash of her — the parts she keeps behind her teeth.)" },
 ];
 
-/* ---------------------------------------------------------------------------
-   2. OBJECTS — the explorable map. 7 hotspots.
-      x/y are percentages across the stage. Each has a sequence of lines.
-      `bond` adds quiet warmth when first examined.
-      Some objects are CHOICE moments (see `choice`).
-   --------------------------------------------------------------------------- */
 const OBJECTS = [
-  {
-    id: "bench",
-    name: "a cracked bench",
-    x: 24, y: 70,
-    bond: 0,
-    lines: [
+  { id:"bench", name:"a cracked bench", bond:0, lines:[
       { who: "narr",  text: "A bench grown soft with rot. Someone carved two sets of initials into it once, then scratched one out. I run my thumb over the scar of it." },
       { who: "emy",   text: "People used to wait here. Real polite about it. Lined up. Trusted the thing would come." },
       { who: "kali",  text: "You say 'trusted' like it's a disease." },
@@ -698,14 +213,8 @@ const OBJECTS = [
       { who: "emy",   text: "..." },
       { who: "flash", text: "She still believes in things. I can see her doing it — right now, believing in me. It's the scariest thing I've ever had to stand next to and not flinch away from." },
       { who: "emy",   text: "Sit down before you fall down. You've been on that foot all day." },
-    ],
-  },
-  {
-    id: "poster",
-    name: "a faded travel poster",
-    x: 14, y: 40,
-    bond: 1,
-    lines: [
+  ]},
+  { id:"poster", name:"a faded travel poster", bond:1, lines:[
       { who: "narr", text: "A peeling poster. A coastline that probably doesn't exist anymore. 'THE SEA IS CLOSER THAN YOU THINK.'" },
       { who: "kali", text: "I've never seen it. The sea. Have you?" },
       { who: "emy",  text: "Once. From far. It was gray and it was loud and it didn't care about us at all." },
@@ -713,18 +222,12 @@ const OBJECTS = [
       { who: "emy",  text: "...It kind of was." },
       { who: "kali", text: "Take me sometime. When the roads are quieter." },
       { who: "emy",  text: "The roads are never gonna be quieter, Kali." },
-      { who: "kali",  text: "Then take me when they're loud. I don't mind, if it's with you." },
-      { who: "narr",  text: "She looks at the poster very hard, so she doesn't have to look at me." },
+      { who: "kali", text: "Then take me when they're loud. I don't mind, if it's with you." },
+      { who: "narr", text: "She looks at the poster very hard, so she doesn't have to look at me." },
       { who: "flash", text: "Take you to the sea. Like I get to make plans. Like wanting something out loud doesn't just hand the world a list of what to take from me. ...I'd carry you the whole way, though. I'd never say it. But I would." },
-    ],
-  },
-  {
-    id: "radio",
-    name: "a dead radio",
-    x: 50, y: 34,
-    bond: 1,
-    lines: [
-      { who: "narr", text: "A handheld radio, half its case gone. You thumb the wheel out of habit. Static, then almost-music, then static." },
+  ]},
+  { id:"radio", name:"a dead radio", bond:1, lines:[
+      { who: "narr", text: "A handheld radio, half its case gone. I thumb the wheel out of habit. Static, then almost-music, then static." },
       { who: "kali", text: "Wait— go back. There. You hear that?" },
       { who: "emy",  text: "It's noise." },
       { who: "kali", text: "It's a song. Somebody, somewhere, is still playing a song. That means somebody's still out there." },
@@ -732,34 +235,22 @@ const OBJECTS = [
       { who: "kali", text: "God, you're exhausting." },
       { who: "emy",  text: "I'm careful. There's a difference." },
       { who: "kali", text: "Is there? From in here it looks like the same coat." },
-      { who: "narr",  text: "She turns the volume down to almost-nothing and lets the almost-music stay. A small mercy. For who, neither of us says." },
+      { who: "narr", text: "She turns the volume down to almost-nothing and lets the almost-music stay. A small mercy. For who, neither of us says." },
       { who: "flash", text: "It's a tape on a loop in an empty room. I know that. I turned it down so it'd keep playing anyway — because she smiled at it for one second. That's the whole truth I keep behind the careful." },
-    ],
-  },
-  {
-    id: "pack",
-    name: "Kali's pack",
-    x: 68, y: 66,
-    bond: 1,
-    lines: [
-      { who: "narr", text: "Kali's pack, slumped against the wall. The zipper's broken; she's tied it with a bootlace." },
+  ]},
+  { id:"pack", name:"Kali's pack", bond:1, lines:[
+      { who: "narr", text: "My pack, slumped against a seat. The zipper's broken; I've tied it shut with a bootlace." },
       { who: "emy",  text: "You carry too much. You'll wreck your back hauling other people's junk." },
       { who: "kali", text: "It's not junk. Look— this is from the kid in the river town. This, the old man traded me for stitches." },
       { who: "emy",  text: "So you carry strangers around with you." },
       { who: "kali", text: "I carry proof. That I met them. That they were real and they were kind and the world had them in it for a while." },
       { who: "emy",  text: "And when the pack gets too heavy?" },
-      { who: "kali",  text: "Then I guess I find someone to share the weight." },
-      { who: "narr",  text: "She's not looking at the pack when she says it. She's looking at me." },
+      { who: "kali", text: "Then I guess I find someone to share the weight." },
+      { who: "narr", text: "She's not looking at the pack when I say it. She's looking at me." },
       { who: "flash", text: "Share the weight. Her name was right there in my mouth. I swallowed it, like always. Names are just one more thing the world knows to come back for." },
-    ],
-  },
-  {
-    id: "mirror",
-    name: "a shard of mirror",
-    x: 86, y: 44,
-    bond: 1,
-    lines: [
-      { who: "narr", text: "A long shard of mirror wedged in a ticket window. You can see half your face in it. You both can." },
+  ]},
+  { id:"mirror", name:"a shard of mirror", bond:1, lines:[
+      { who: "narr", text: "A long shard of mirror wedged in a window frame. I can see half my face in it. We both can." },
       { who: "kali", text: "There. That's us. The whole population of the world, far as we know." },
       { who: "emy",  text: "Population's down. One of us looks like hell." },
       { who: "kali", text: "You look tired, Emy. Not the same thing." },
@@ -767,42 +258,19 @@ const OBJECTS = [
       { who: "kali", text: "Tired means you've still got somewhere to get to. People who give up stop looking tired. They look... finished. You're not finished." },
       { who: "emy",  text: "How do you know." },
       { who: "kali", text: "Because you keep checking that I'm still behind you. Every twenty steps. All day." },
-      { who: "emy",   text: "...I do not." },
-      { who: "kali",  text: "You did it twice while we've been standing here." },
+      { who: "emy",  text: "...I do not." },
+      { who: "kali", text: "You did it twice while we've been standing here." },
       { who: "flash", text: "Three times. She missed one. I check because the day she's not behind me is the day I forget how to keep walking. I'd rather not learn what that's like." },
-    ],
-  },
-  {
-    // CHOICE MOMENT 1 — the door (do you keep an exit open, or close it for warmth?)
-    id: "door",
-    name: "the jammed service door",
-    x: 40, y: 56,
-    bond: 0,
-    choice: "door",
-    lines: [
-      { who: "narr", text: "A service door, swollen in its frame. Half-open. Cold air pours through it like water. You could force it shut. You could leave it." },
-    ],
-  },
-  {
-    // CHOICE MOMENT 2 — the fire (the practical scarcity question, with subtext)
-    id: "fire",
-    name: "a rusted barrel",
-    x: 60, y: 78,
-    bond: 0,
-    act: 1,
-    choice: "fire",
-    lines: [
-      { who: "narr", text: "An old burn barrel. There's enough dry scrap for one small fire. Maybe enough warmth for one of us to actually sleep." },
-    ],
-  },
-
-  /* ----- ACT TWO objects -------------------------------------------------
-     These stay hidden until the night deepens (see checkProgress/revealAct2).
-     The mood here is closer, later, more unguarded. */
-  {
-    id: "ledger", name: "the ticket-window ledger", x: 30, y: 47, bond: 1, act: 2,
-    lines: [
-      { who: "narr",  text: "Behind the cracked ticket glass, a ledger swollen fat with damp. Columns of names. Destinations. Every line is someone who stood right where we're standing and believed they were going somewhere." },
+  ]},
+  { id:"door", name:"the carriage door", choice:"door", bond:0, lines:[
+      { who: "narr", text: "The end door, swollen in its frame. Half-open. Cold air pours through it like water. I could force it shut. I could leave it." },
+  ]},
+  { id:"fire", name:"a rusted barrel", choice:"fire", bond:0, act:1, lines:[
+      { who: "narr", text: "An old burn barrel somebody dragged aboard. There's enough dry scrap for one small fire. Maybe enough warmth for one of us to actually sleep." },
+  ]},
+  /* ----- ACT TWO objects (revealed when the night deepens) ----- */
+  { id:"ledger", name:"the conductor's ledger", bond:1, act:2, lines:[
+      { who: "narr",  text: "A ledger swollen fat with damp, left on the conductor's stand. Columns of names. Destinations. Every line is someone who rode where we're standing and believed they were going somewhere." },
       { who: "kali",  text: "Look how many. All these people. All these somewheres." },
       { who: "emy",   text: "All gone now. Names in a wet book nobody'll ever read." },
       { who: "kali",  text: "We're reading it." },
@@ -810,12 +278,9 @@ const OBJECTS = [
       { who: "flash", text: "She does that. Finds the one thread of not-pointless in a thing and pulls until it holds my weight too. I walked in here sure the world was just a graveyard. She keeps quietly turning it back into a place where people lived." },
       { who: "narr",  text: "She writes two names, small, in the margin where the paper's still dry. They'll be gone by morning. She writes them anyway." },
       { who: "emy",   text: "...Leave a little room. In case we come back." },
-    ],
-  },
-  {
-    id: "shoe", name: "a child's shoe", x: 78, y: 73, bond: 1, act: 2,
-    lines: [
-      { who: "narr",  text: "A child's shoe on its side under the bench. Small. The laces still tied in a careful double knot somebody must have learned the slow way." },
+  ]},
+  { id:"shoe", name:"a child's shoe", bond:1, act:2, lines:[
+      { who: "narr",  text: "A child's shoe on its side under a seat. Small. The laces still tied in a careful double knot somebody must have learned the slow way." },
       { who: "emy",   text: "..." },
       { who: "kali",  text: "Hey. You okay?" },
       { who: "emy",   text: "Fine. It's just a shoe." },
@@ -823,12 +288,9 @@ const OBJECTS = [
       { who: "kali",  text: "We don't have to look at it." },
       { who: "emy",   text: "No. Somebody should. Somebody should look at the small things and not flinch. It's the only funeral most of them ever got." },
       { who: "narr",  text: "She sets the shoe upright, careful, the way you'd straighten something on a grave. Something in my chest goes tight and bright and dangerous, and I have to look away first." },
-    ],
-  },
-  {
-    id: "skylight", name: "the broken skylight", x: 50, y: 24, bond: 1, act: 2,
-    lines: [
-      { who: "narr",  text: "A jagged hole torn in the roof. Through it, impossibly, stars — more than the dead cities ever let us see. The dark up there doesn't know a thing ended down here." },
+  ]},
+  { id:"skylight", name:"a hole in the roof", bond:1, act:2, lines:[
+      { who: "narr",  text: "A jagged hole torn in the carriage roof. Through it, impossibly, stars — more than the dead cities ever let us see. The dark up there doesn't know a thing ended down here." },
       { who: "kali",  text: "There's the one thing the world couldn't ruin. Too far away to get the news." },
       { who: "emy",   text: "Make a wish, then. Isn't that the deal." },
       { who: "kali",  text: "You first." },
@@ -837,11 +299,8 @@ const OBJECTS = [
       { who: "kali",  text: "Okay. Then I'll wish loud enough for the both of us." },
       { who: "emy",   text: "...Don't waste it on me." },
       { who: "kali",  text: "Too late. Already did." },
-    ],
-  },
-  {
-    id: "knife", name: "Emy's folding knife", x: 46, y: 70, bond: 1, act: 2,
-    lines: [
+  ]},
+  { id:"knife", name:"Emy's folding knife", bond:1, act:2, lines:[
       { who: "narr",  text: "She's got an old folding knife she keeps touching when she thinks I'm not looking. Bone handle, worn pale where her thumb sits. The one thing she carries that isn't strictly for surviving." },
       { who: "kali",  text: "Can I?" },
       { who: "emy",   text: "...Careful. It's sharp." },
@@ -853,12 +312,9 @@ const OBJECTS = [
       { who: "emy",   text: "Yeah. Funny thing is — lately I keep forgetting to reach for it." },
       { who: "kali",  text: "Yeah? Why's that." },
       { who: "emy",   text: "...You know why. Don't make me say it." },
-    ],
-  },
-  {
-    id: "flask", name: "a dented flask", x: 18, y: 64, bond: 1, act: 2,
-    lines: [
-      { who: "narr",  text: "A dented steel flask in a locker, somehow still sealed. She sniffs it, makes a face, takes a swig anyway, and hands it over. Some firewater that outlived the end of everything." },
+  ]},
+  { id:"flask", name:"a dented flask", bond:1, act:2, lines:[
+      { who: "narr",  text: "A dented steel flask in an overhead locker, somehow still sealed. She sniffs it, makes a face, takes a swig anyway, and hands it over. Some firewater that outlived the end of everything." },
       { who: "kali",  text: "God, that's awful." },
       { who: "emy",   text: "Best awful thing for miles." },
       { who: "kali",  text: "(coughs) To the last train. May it stay good and gone." },
@@ -867,137 +323,101 @@ const OBJECTS = [
       { who: "emy",   text: "...You're easier to be around than anybody's got a right to be, you know that?" },
       { who: "kali",  text: "That a compliment?" },
       { who: "emy",   text: "It's the closest I've got. Take it before I take it back." },
-    ],
-  },
+  ]},
 ];
 
-/* ----- ACT TWO transition: plays once when the night deepens. ----------- */
 const ACT2_INTRO = [
-  { who: "narr",  text: "The cold settles in for real. The dark gets older. Somewhere a beam ticks as the temperature drops, and the station gives up a few more of its secrets — shapes I didn't see before, or wasn't ready to." },
+  { who: "narr",  text: "The cold settles in for real. The dark gets older. Somewhere down the line a beam ticks as the temperature drops, and the carriage gives up a few more of its secrets — shapes I didn't see before, or wasn't ready to." },
   { who: "emy",   text: "...It's a long way still, till morning." },
   { who: "kali",  text: "Good. I'm not done with tonight yet." },
   { who: "flash", text: "Neither am I. God help me — I don't want this one to end. First time in years I've wanted the dark to last a little longer." },
 ];
 
-/* ---------------------------------------------------------------------------
-   3. CHOICES — the three branching moments.
-      Each option records a flag and plays a short reaction.
-      `warmth` nudges the ending. `flag` is remembered for the finale.
-   --------------------------------------------------------------------------- */
+/* When you talk to Emy before the late beats unlock, she says one of these. */
+const EMY_AMBIENT = [
+  [ { who:"emy", text:"Find anything good out there, or just ghosts?" } ],
+  [ { who:"emy", text:"...You don't have to keep checking on me, you know." },
+    { who:"flash", text:"Keep checking on me. Please keep checking on me." } ],
+  [ { who:"kali", text:"Just making sure you're still here." },
+    { who:"emy", text:"Where would I even go, Kali." } ],
+  [ { who:"emy", text:"Quit hovering. I can feel you hovering." },
+    { who:"kali", text:"It's a small carriage." },
+    { who:"emy", text:"...Yeah. It is." } ],
+];
+
 const CHOICES = {
-  /* CHOICE 1 — the door: an exit kept open vs. closed for the two of you */
   door: {
     prompt: { who: "emy", text: "Your call, Kali. Leave it open so we can run if we have to... or shut it, and it's just the two of us in here till morning." },
     options: [
-      {
-        label: "Force it shut. \"Nothing's getting in tonight. Including the cold.\"",
-        flag: "door_closed", warmth: +1,
-        after: [
-          { who: "narr",  text: "It takes both of us, shoulders to the wood. The door groans home. The cold stops moving. The room gets very quiet, and very small, and only ours." },
-          { who: "kali",  text: "...Just us, then." },
-          { who: "emy",   text: "Just us. Don't make it weird." },
-          { who: "flash", text: "Just us. Sealed in. No road out and — God help me — I'm not looking for one. First time in years the want's louder than the fear. Don't make it weird, she says. I'm the one making it weird." },
-          { who: "kali",  text: "Too late." },
-        ],
-      },
-      {
-        label: "Leave it open. \"I like knowing the way out.\"",
-        flag: "door_open", warmth: 0,
-        after: [
-          { who: "narr",  text: "I leave it. The cold keeps its road through the room. Emy plants herself where she can see it — the dark rectangle of out-there." },
-          { who: "kali",  text: "You always need a door, huh." },
-          { who: "emy",   text: "I always need to know I could go. Doesn't mean I will." },
-          { who: "flash", text: "She left it open. For me. Didn't even make me ask. She figured out the shape of my fear and just... built the room around it. Nobody's ever done that. I don't have a word for what it does to me." },
-          { who: "kali",  text: "Okay. As long as you know you don't have to." },
-        ],
-      },
+      { label:"Force it shut. \"Nothing's getting in tonight. Including the cold.\"", flag:"door_closed", warmth:+1, after:[
+        { who: "narr",  text: "It takes both of us, shoulders to the wood. The door groans home. The cold stops moving. The carriage gets very quiet, and very small, and only ours." },
+        { who: "kali",  text: "...Just us, then." },
+        { who: "emy",   text: "Just us. Don't make it weird." },
+        { who: "flash", text: "Just us. Sealed in. No road out and — God help me — I'm not looking for one. First time in years the want's louder than the fear. Don't make it weird, she says. I'm the one making it weird." },
+        { who: "kali",  text: "Too late." },
+      ]},
+      { label:"Leave it open. \"I like knowing the way out.\"", flag:"door_open", warmth:0, after:[
+        { who: "narr",  text: "I leave it. The cold keeps its road through the carriage. Emy plants herself where she can see it — the dark rectangle of out-there." },
+        { who: "kali",  text: "You always need a door, huh." },
+        { who: "emy",   text: "I always need to know I could go. Doesn't mean I will." },
+        { who: "flash", text: "She left it open. For me. Didn't even make me ask. She figured out the shape of my fear and just... built the room around it. Nobody's ever done that. I don't have a word for what it does to me." },
+        { who: "kali",  text: "Okay. As long as you know you don't have to." },
+      ]},
     ],
   },
-
-  /* CHOICE 2 — the fire: who gets the warmth */
   fire: {
     prompt: { who: "emy", text: "One fire. Barely enough scrap for it. Enough warmth for one of us to really sleep, maybe. ...Your call. You're better at calls than me." },
     options: [
-      {
-        label: "\"We split it. Both half-cold beats one of us alone.\"",
-        flag: "fire_shared", warmth: +1,
-        after: [
-          { who: "narr",  text: "We build it small and sit close, close enough that the question of how close stops being a question. The fire ticks. Our shoulders end up touching. Neither of us moves away." },
-          { who: "kali",  text: "See? Half-cold's not so bad." },
-          { who: "flash", text: "Her shoulder against mine. I could map the exact line of it with my eyes shut. I keep thinking move, you'll wreck it, and my body keeps refusing the order. For once I let it lose the argument." },
-          { who: "emy",   text: "...It's bearable." },
-          { who: "kali",  text: "High praise, coming from you." },
-        ],
-      },
-      {
-        label: "\"You take it, Emy. Sleep — I've got the watch.\"",
-        flag: "fire_gave", warmth: +1,
-        after: [
-          { who: "narr",  text: "She folds down by the barrel, smaller than she'd ever let herself look awake. I take the dark just past the firelight and keep my eyes on the door. On her. Mostly on her." },
-          { who: "emy",   text: "(half-asleep) ...You're staring." },
-          { who: "kali",  text: "I'm keeping watch." },
-          { who: "emy",   text: "Mm. 'm cold." },
-          { who: "flash", text: "She stayed close. She's keeping watch over me like I'm something worth guarding. When did I get soft enough to let someone do that... and why don't I want it to stop." },
-          { who: "narr",  text: "I shift in until the fire's warmth and mine reach her at the same time. Some kindnesses you don't announce." },
-        ],
-      },
-      {
-        label: "\"Take it. I'll be alright over here.\" (sit apart)",
-        flag: "fire_apart", warmth: -1,
-        after: [
-          { who: "narr",  text: "I give her the fire and take the far wall — a careful stretch of cold floor I put there on purpose. I'm so tired of being the only one reaching. Tonight I let the gap be a gap." },
-          { who: "emy",   text: "...You don't have to sit all the way over there." },
-          { who: "kali",  text: "I'm alright where I am." },
-          { who: "flash", text: "She pulled back. She finally pulled back. I do this — I teach people to stop trying, then I'm gutted when they learn. The worst part isn't the cold. It's how much of me was begging her to argue." },
-        ],
-      },
+      { label:"\"We split it. Both half-cold beats one of us alone.\"", flag:"fire_shared", warmth:+1, after:[
+        { who: "narr",  text: "We build it small and sit close, close enough that the question of how close stops being a question. The fire ticks. Our shoulders end up touching. Neither of us moves away." },
+        { who: "kali",  text: "See? Half-cold's not so bad." },
+        { who: "flash", text: "Her shoulder against mine. I could map the exact line of it with my eyes shut. I keep thinking move, you'll wreck it, and my body keeps refusing the order. For once I let it lose the argument." },
+        { who: "emy",   text: "...It's bearable." },
+        { who: "kali",  text: "High praise, coming from you." },
+      ]},
+      { label:"\"You take it, Emy. Sleep — I've got the watch.\"", flag:"fire_gave", warmth:+1, after:[
+        { who: "narr",  text: "She folds down by the barrel, smaller than she'd ever let herself look awake. I take the dark just past the firelight and keep my eyes on the door. On her. Mostly on her." },
+        { who: "emy",   text: "(half-asleep) ...You're staring." },
+        { who: "kali",  text: "I'm keeping watch." },
+        { who: "emy",   text: "Mm. 'm cold." },
+        { who: "flash", text: "She stayed close. She's keeping watch over me like I'm something worth guarding. When did I get soft enough to let someone do that... and why don't I want it to stop." },
+        { who: "narr",  text: "I shift in until the fire's warmth and mine reach her at the same time. Some kindnesses you don't announce." },
+      ]},
+      { label:"\"Take it. I'll be alright over here.\" (keep your distance)", flag:"fire_apart", warmth:-1, after:[
+        { who: "narr",  text: "I give her the fire and take the far seats — a careful stretch of cold floor I put there on purpose. I'm so tired of being the only one reaching. Tonight I let the gap be a gap." },
+        { who: "emy",   text: "...You don't have to sit all the way over there." },
+        { who: "kali",  text: "I'm alright where I am." },
+        { who: "flash", text: "She pulled back. She finally pulled back. I do this — I teach people to stop trying, then I'm gutted when they learn. The worst part isn't the cold. It's how much of me was begging her to argue." },
+      ]},
     ],
   },
-
-  /* CHOICE 3 — the hand: the wordless confession. Emy, of all people, makes
-     the offer; you (Kali) decide what to do with it. Unlocks near the end. */
   hands: {
     lead: [
       { who: "narr",  text: "Later. The fire's low, or the cold's deep — depends which way the night went. We're quiet in the kind of way that's louder than talking." },
       { who: "flash", text: "Do it. Just do it. Put your hand where she can find it. She's spent all night building me rooms with the doors left open — she did the brave part already. The least I can do is leave one thing of mine out in the cold and not snatch it back." },
-      { who: "narr",  text: "And then — I feel it before I see it. Emy's hand sliding onto the floor in the space between us. Palm up. Not reaching. Just there. From her, that's not a gesture. That's a held breath she's deciding not to take back." },
+      { who: "narr",  text: "And then — I feel it before I see it. Emy's hand sliding onto the seat in the space between us. Palm up. Not reaching. Just there. From her, that's not a gesture. That's a held breath she's deciding not to take back." },
     ],
     options: [
-      {
-        label: "Take her hand.",
-        flag: "hand_held", warmth: +2,
-        after: [
-          { who: "narr",  text: "I put my hand in hers and don't say anything clever about it, so she'll know it's not a joke I'm setting up." },
-          { who: "emy",   text: "Don't. I'll lose my nerve." },
-          { who: "kali",  text: "Okay. I've got it, then. The nerve. I'll hold onto it for you." },
-          { who: "flash", text: "She took it. She didn't make me explain, didn't make it a thing. I put my hand out like a dare to myself and she just... met it. Like it was always going to be easy. Maybe — maybe it gets to be easy." },
-          { who: "narr",  text: "And she holds on. All the rest of the night, through every long hour of it, she holds on." },
-        ],
-      },
-      {
-        label: "Reach — then falter, afraid to get it wrong.",
-        flag: "hand_almost", warmth: 0,
-        after: [
-          { who: "narr",  text: "My fingers get close enough to feel the warmth coming off her skin. Then some old caution of mine — don't startle her, don't want it too loud — stalls my hand an inch short." },
-          { who: "flash", text: "She almost did. I felt her get close. Then nothing. ...Maybe I read it wrong. Maybe a hand on the floor is just a hand, and I'm the fool who made it mean the whole world." },
-          { who: "kali",  text: "I'm here. I'm not going anywhere. Whenever you're ready — even if ready's not tonight." },
-          { who: "emy",   text: "...Yeah." },
-        ],
-      },
-      {
-        label: "Leave it lying there. Look at the fire.",
-        flag: "hand_none", warmth: -1,
-        after: [
-          { who: "narr",  text: "I look at the fire instead. I tell myself it's kinder not to crowd her. I'm not sure I believe me." },
-          { who: "flash", text: "She left it there. Left me there — hand out in the cold like an idiot. I knew better. I always know better. Doesn't stop it from carving something out of me that won't grow back the same." },
-          { who: "narr",  text: "After a while, quietly, Emy takes her hand back and folds it into her sleeve. Neither of us says the other thing. The night gets longer." },
-        ],
-      },
+      { label:"Take her hand.", flag:"hand_held", warmth:+2, after:[
+        { who: "narr",  text: "I put my hand in hers and don't say anything clever about it, so she'll know it's not a joke I'm setting up." },
+        { who: "emy",   text: "Don't. I'll lose my nerve." },
+        { who: "kali",  text: "Okay. I've got it, then. The nerve. I'll hold onto it for you." },
+        { who: "flash", text: "She took it. She didn't make me explain, didn't make it a thing. I put my hand out like a dare to myself and she just... met it. Like it was always going to be easy. Maybe — maybe it gets to be easy." },
+        { who: "narr",  text: "And she holds on. All the rest of the night, through every long hour of it, she holds on." },
+      ]},
+      { label:"Reach — then falter, afraid to get it wrong.", flag:"hand_almost", warmth:0, after:[
+        { who: "narr",  text: "My fingers get close enough to feel the warmth coming off her skin. Then some old caution of mine — don't startle her, don't want it too loud — stalls my hand an inch short." },
+        { who: "flash", text: "She almost did. I felt her get close. Then nothing. ...Maybe I read it wrong. Maybe a hand on a seat is just a hand, and I'm the fool who made it mean the whole world." },
+        { who: "kali",  text: "I'm here. I'm not going anywhere. Whenever you're ready — even if ready's not tonight." },
+        { who: "emy",   text: "...Yeah." },
+      ]},
+      { label:"Leave it lying there. Look at the fire.", flag:"hand_none", warmth:-1, after:[
+        { who: "narr",  text: "I look at the fire instead. I tell myself it's kinder not to crowd her. I'm not sure I believe me." },
+        { who: "flash", text: "She left it there. Left me there — hand out in the cold like an idiot. I knew better. I always know better. Doesn't stop it from carving something out of me that won't grow back the same." },
+        { who: "narr",  text: "After a while, quietly, Emy takes her hand back and folds it into her sleeve. Neither of us says the other thing. The night gets longer." },
+      ]},
     ],
   },
-
-  /* CHOICE 4 — the kiss. Only unlocks if she held your hand and the night ran
-     warm (warmth >= KISS_THRESHOLD). The last, softest decision of the night. */
   kiss: {
     lead: [
       { who: "narr",  text: "Her hand is still warm in mine. Neither of us has let go, and the space between our shoulders has quietly become no space at all. She looks up. The firelight does something to her face the daylight never gets to." },
@@ -1005,624 +425,660 @@ const CHOICES = {
       { who: "narr",  text: "Emy doesn't pull back. She just waits, breath caught, letting me be the one to decide. Trusting me with the deciding — which, from her, is the whole confession." },
     ],
     options: [
-      {
-        label: "Close the distance. Kiss her.",
-        flag: "kissed", warmth: +2,
-        after: [
-          { who: "narr",  text: "I lean in slow, giving her every chance in the world to stop me. She doesn't take a single one. Her mouth is chapped and warm and it trembles, just slightly, like the rest of her has finally caught up to what she wanted all along." },
-          { who: "narr",  text: "It isn't fireworks. It's quieter than that, and better — two people who outlived the end of the world deciding the world isn't over yet. When we part, she keeps her forehead against mine and won't open her eyes." },
-          { who: "emy",   text: "...Okay. Okay. Wow. Don't let that go to your head." },
-          { who: "kali",  text: "Way too late." },
-          { who: "flash", text: "Whole life I waited for the other shoe to drop. Turns out sometimes the thing coming for you in the dark is just someone who loves you, and the only thing she takes is the being-alone. Take it. It's yours. I don't want it back." },
-          { who: "emy",   text: "Hey. Kali. ...I'm glad it was you. At the end of the line. Out of the whole ruined world — I'm glad it was you." },
-        ],
-      },
-      {
-        label: "Stay close — just hold her tonight.",
-        flag: "held_close", warmth: +1,
-        after: [
-          { who: "narr",  text: "I don't close the last inch. Not tonight. Instead I pull her in against me, and her head finds the curve of my neck like it had been hunting for that exact spot for years." },
-          { who: "kali",  text: "We've got time. I'd rather get this right than get it fast." },
-          { who: "emy",   text: "...Yeah. Yeah, okay. This. This is good." },
-          { who: "flash", text: "She didn't push. She never pushes. She just made a place for me and let me be the one to step into it. Whatever this is — I think it's the first thing I've ever been brave enough to want to keep." },
-        ],
-      },
+      { label:"Close the distance. Kiss her.", flag:"kissed", warmth:+2, after:[
+        { who: "narr",  text: "I lean in slow, giving her every chance in the world to stop me. She doesn't take a single one. Her mouth is chapped and warm and it trembles, just slightly, like the rest of her has finally caught up to what she wanted all along." },
+        { who: "narr",  text: "It isn't fireworks. It's quieter than that, and better — two people who outlived the end of the world deciding the world isn't over yet. When we part, she keeps her forehead against mine and won't open her eyes." },
+        { who: "emy",   text: "...Okay. Okay. Wow. Don't let that go to your head." },
+        { who: "kali",  text: "Way too late." },
+        { who: "flash", text: "Whole life I waited for the other shoe to drop. Turns out sometimes the thing coming for you in the dark is just someone who loves you, and the only thing she takes is the being-alone. Take it. It's yours. I don't want it back." },
+        { who: "emy",   text: "Hey. Kali. ...I'm glad it was you. At the end of the line. Out of the whole ruined world — I'm glad it was you." },
+      ]},
+      { label:"Stay close — just hold her tonight.", flag:"held_close", warmth:+1, after:[
+        { who: "narr",  text: "I don't close the last inch. Not tonight. Instead I pull her in against me, and her head finds the curve of my neck like it had been hunting for that exact spot for years." },
+        { who: "kali",  text: "We've got time. I'd rather get this right than get it fast." },
+        { who: "emy",   text: "...Yeah. Yeah, okay. This. This is good." },
+        { who: "flash", text: "She didn't push. She never pushes. She just made a place for me and let me be the one to step into it. Whatever this is — I think it's the first thing I've ever been brave enough to want to keep." },
+      ]},
     ],
   },
 };
 
-/* ---------------------------------------------------------------------------
-   4. ENDINGS — three of them. Picked from warmth + key flags.
-      Logic (in resolveEnding):
-        • HOPEFUL    : warmth high AND took her hand.
-        • BITTERSWEET: middling warmth, or almost-reached.
-        • DISTANT    : low warmth / pulled away / kept the door.
-   --------------------------------------------------------------------------- */
 const ENDINGS = {
-  radiant: {
-    title: "The World, Beginning Again",
-    tag: "— radiant —",
-    body:
-      "I don't sleep, and for once I don't want to. She's curled into me, the knife forgotten in her pack for the first time since I've known her, her breath slow and warm against my throat.\n\n" +
-      "When the light comes up — gray, then gold, then a gold I've never seen the likes of — she stirs and looks at me like she's checking I'm real, decides that I am, and gives me the smile she's been hiding behind sarcasm since the day we met.\n\n" +
-      "\"The sea,\" she says, before I can. \"You wanted to see it. Let's go ruin it by actually looking at the thing.\"\n\n" +
-      "We leave the station hand in hand and we don't look back at the dead clock. Let it stay 11:54 forever; we're not waiting on anything anymore. The last train never came — and thank God it didn't, because we might have climbed aboard, and then we'd never have learned that the end of the line was only ever the beginning of us.",
-  },
-  hopeful: {
-    title: "Morning, and a Direction",
-    tag: "— hopeful —",
-    body:
-      "The light comes up gray and then, for a moment, gold. I wake with her hand still in mine and her breath against my collar, " +
-      "and for one whole minute I don't reach for a single reason this can't last.\n\n" +
-      "\"The sea,\" I say, before I can talk myself out of it. \"You never did take me. Let's go find out if the poster lied.\"\n\n" +
-      "She huffs a laugh into my shoulder — and then she nods. The train never came. Walking out into the wet, bright ruin of the morning, " +
-      "I understand we both stopped waiting for it somewhere in the night, and started, instead, going somewhere on purpose. Together. " +
-      "It is not safe. It was never going to be safe. But it's ours now, and we're choosing it with our eyes open.",
-  },
-  bittersweet: {
-    title: "What the Night Held",
-    tag: "— bittersweet —",
-    body:
-      "I don't sleep, not really. I watch her instead, and the watching feels like a confession my mouth won't agree to make.\n\n" +
-      "By morning the words are still behind my teeth, where they live. But she catches my eye on the way out, and there's no blame in it — " +
-      "just that patient, knowing softness of hers, like she's decided to wait for a train she's almost sure will come.\n\n" +
-      "\"Walk with me a while?\" I ask.\n\n" +
-      "\"Yeah,\" she says. \"A while.\" It isn't everything. It isn't nothing. We walk out side by side into the cold, " +
-      "close enough that our shadows touch, and I let that be the truth I can carry today.",
-  },
-  distant: {
-    title: "The Long Way Apart",
-    tag: "— distant —",
-    body:
-      "Morning finds us on opposite sides of a cold room, exactly as careful as when the night began.\n\n" +
-      "She gathers her pack without a word and ties the broken zipper with her bootlace. At the door she pauses, " +
-      "and for a second it looks like she might finally say the thing. She doesn't. I don't either. That was always the easier silence to keep.\n\n" +
-      "\"Take care of yourself, Kali,\" she says.\n\n" +
-      "\"You too.\" And I mean it — I mean it so much it aches, which is exactly why I can't manage anything else. " +
-      "I watch her go out into the gray. All night I wondered which of us would end up needing the way out. " +
-      "I never once thought it would be her walking through it, and me letting her.",
-  },
-  severed: {
-    title: "Two Roads in the Dark",
-    tag: "— severed —",
-    body:
-      "We pass the night like two stones in the same cold riverbed — close together, touching nothing.\n\n" +
-      "I tell myself I tried. I'm not sure it's true. Somewhere in the dark I stopped reaching, and she let me, because letting people go is the one thing she has truly mastered.\n\n" +
-      "By morning she's already at the threshold when I wake — pack on her shoulder, knife back in her hand like the old days never paused.\n\n" +
-      "\"Easier this way,\" she says, not unkindly. And maybe she's right. Maybe two people who can't make their mouths say the words are just two more things the world quietly wears down to nothing.\n\n" +
-      "She goes one way down the dead track. After a while, I go the other. The station keeps its silence. It has had a great deal of practice.",
-  },
+  radiant: { title:"The World, Beginning Again", tag:"— radiant —", body:
+    "I don't sleep, and for once I don't want to. She's curled into me, the knife forgotten in her pack for the first time since I've known her, her breath slow and warm against my throat.\n\n"+
+    "When the light comes up — gray, then gold, then a gold I've never seen the likes of — she stirs and looks at me like she's checking I'm real, decides that I am, and gives me the smile she's been hiding behind sarcasm since the day we met.\n\n"+
+    "\"The sea,\" she says, before I can. \"You wanted to see it. Let's go ruin it by actually looking at the thing.\"\n\n"+
+    "We leave the carriage hand in hand and we don't look back at the dead clock. Let it stay 11:54 forever; we're not waiting on anything anymore. The last train never came — and thank God it didn't, because we might have climbed aboard and ridden away from each other, and never learned that the end of the line was only ever the beginning of us." },
+  hopeful: { title:"Morning, and a Direction", tag:"— hopeful —", body:
+    "The light comes up gray and then, for a moment, gold. I wake with her hand still in mine and her breath against my collar, and for one whole minute I don't reach for a single reason this can't last.\n\n"+
+    "\"The sea,\" I say, before I can talk myself out of it. \"You never did take me. Let's go find out if the poster lied.\"\n\n"+
+    "She huffs a laugh into my shoulder — and then she nods. The train never came. Walking out into the wet, bright ruin of the morning, I understand we both stopped waiting for it somewhere in the night, and started, instead, going somewhere on purpose. Together. It is not safe. It was never going to be safe. But it's ours now, and we're choosing it with our eyes open." },
+  bittersweet: { title:"What the Night Held", tag:"— bittersweet —", body:
+    "I don't sleep, not really. I watch her instead, and the watching feels like a confession my mouth won't agree to make.\n\n"+
+    "By morning the words are still behind my teeth, where they live. But she catches my eye on the way out, and there's no blame in it — just that patient, knowing softness of hers, like she's decided to wait for a train she's almost sure will come.\n\n"+
+    "\"Walk with me a while?\" I ask.\n\n"+
+    "\"Yeah,\" she says. \"A while.\" It isn't everything. It isn't nothing. We walk out side by side into the cold, close enough that our shadows touch, and I let that be the truth I can carry today." },
+  distant: { title:"The Long Way Apart", tag:"— distant —", body:
+    "Morning finds us at opposite ends of a cold carriage, exactly as careful as when the night began.\n\n"+
+    "She gathers her pack without a word and ties the broken zipper with her bootlace. At the door she pauses, and for a second it looks like she might finally say the thing. She doesn't. I don't either. That was always the easier silence to keep.\n\n"+
+    "\"Take care of yourself, Kali,\" she says.\n\n"+
+    "\"You too.\" And I mean it — I mean it so much it aches, which is exactly why I can't manage anything else. I watch her step down onto the dead track and go. All night I wondered which of us would end up needing the way out. I never once thought it would be her using it." },
+  severed: { title:"Two Roads in the Dark", tag:"— severed —", body:
+    "We pass the night like two stones in the same cold riverbed — close together, touching nothing.\n\n"+
+    "I tell myself I tried. I'm not sure it's true. Somewhere in the dark I stopped reaching, and she let me, because letting people go is the one thing she has truly mastered.\n\n"+
+    "By morning she's already at the door when I wake — pack on her shoulder, knife back in her hand like the old days never paused.\n\n"+
+    "\"Easier this way,\" she says, not unkindly. And maybe she's right. Maybe two people who can't make their mouths say the words are just two more things the world quietly wears down to nothing.\n\n"+
+    "She goes one way down the dead track. After a while, I go the other. The carriage keeps its silence. It has had a great deal of practice." },
+};
+
+/* World placement of each object: {x: world-px, y: marker screen-height}. */
+const WX = {
+  poster:{x:300,y:150},  flask:{x:480,y:150},  bench:{x:660,y:286},  shoe:{x:720,y:296},
+  radio:{x:980,y:150},   pack:{x:1240,y:290},  skylight:{x:1500,y:104}, knife:{x:1760,y:286},
+  mirror:{x:2060,y:150}, ledger:{x:2220,y:150}, fire:{x:2520,y:296},  door:{x:2840,y:172},
+};
+const WORLD_W = 3000;   // total carriage length (world px)
+const EMY_X   = 1620;   // where Emy stands
+const KISS_THRESHOLD = 6;
+
+/* Items you pick up by examining certain objects (shown in the inventory). */
+const ITEMS = {
+  poster:  { icon:"🖼️", name:"sea-poster scrap", desc:"A coastline that probably isn't there anymore. I tore off a corner. Proof I meant to go." },
+  radio:   { icon:"📻", name:"dead radio",       desc:"It only catches a loop of almost-music. I kept it on anyway, low, for her." },
+  pack:    { icon:"🎒", name:"a keepsake",        desc:"One of the small proofs I carry that kind people were real, once." },
+  skylight:{ icon:"⭐", name:"a wish",            desc:"I wished she'd still be standing next to me at sunup. Don't tell her." },
+  knife:   { icon:"🔪", name:"Emy's knife",       desc:"She let me hold it. From Emy, that's most of a confession." },
+  mirror:  { icon:"🪞", name:"mirror shard",      desc:"Half my face, half hers. The whole population of the world." },
+  ledger:  { icon:"📓", name:"two names",         desc:"I wrote us into the margin. Gone by morning — but written." },
+  shoe:    { icon:"👟", name:"a child's shoe",    desc:"Laces double-knotted by someone who loved them. I set it upright, like a grave." },
+  flask:   { icon:"🥃", name:"dented flask",      desc:"Best awful thing for miles, she said. She wasn't wrong." },
 };
 
 /* ===========================================================================
-   ENGINE — you shouldn't need to edit below to change the story.
+   STATE
    =========================================================================== */
-
-// --- Game state -------------------------------------------------------------
 const state = {
-  warmth: 0,             // accumulates from objects + choices
-  flags: {},             // choice flags
-  examined: {},          // which objects have been looked at
-  choicesMade: 0,        // door + fire progress
-  act: 1,                // 1 = first sweep of the station, 2 = the night deepens
-  handOffered: false,    // whether the late "sit with her" beat is unlocked
-  kissOffered: false,    // whether the kiss beat is unlocked
-  finished: false,
+  mode:"title",        // title | explore | dialogue | ending
+  warmth:0, flags:{}, examined:{}, inventory:[],
+  choicesMade:0, act:1,
+  handReady:false, handsResolved:false,
+  kissReady:false, kissResolved:false,
+  finished:false,
+  ambientIdx:0,
 };
 
-// Once warmth is at least this high AND she's held your hand, the kiss unlocks.
-const KISS_THRESHOLD = 6;
+/* ===========================================================================
+   CANVAS + RENDER
+   =========================================================================== */
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+/* Wide cinematic strip, painterly (smooth) rendering, Saihate-style. */
+const W = 960, H = 420;
+const BAR = 66;            // letterbox bar height (top & bottom)
+const WALL_TOP = BAR;      // carriage interior begins here
+const FLOOR_Y = 300;       // where the wall meets the floor
+const FLOOR  = 332;        // characters' feet line
+const SCENE_BOT = H - BAR; // floor band bottom
+ctx.imageSmoothingEnabled = true;
 
-// --- DOM refs ---------------------------------------------------------------
-const el = (id) => document.getElementById(id);
-const stage      = el("stage");
-const hotspots   = el("hotspots");
-const dialogue   = el("dialogue");
-const speakerEl  = el("speaker");
-const lineEl     = el("line");
-const choicesEl  = el("choices");
-const continueEl = el("continue");
-const hintEl     = el("hint");
-const faderEl    = el("fader");
-const bondPips   = Array.from(document.querySelectorAll("#bond .pip"));
+function fitCanvas(){
+  const ww = window.innerWidth, wh = window.innerHeight;
+  let cw = ww, ch = ww * H / W;
+  if (ch > wh) { ch = wh; cw = wh * W / H; }
+  canvas.style.width = Math.round(cw) + "px";
+  canvas.style.height = Math.round(ch) + "px";
+}
+window.addEventListener("resize", fitCanvas);
+fitCanvas();
 
-// --- Dialogue runner --------------------------------------------------------
-// A "sequence" is an array of {who,text}. We type it out line by line.
-let queue = [];        // remaining lines in the current sequence
-let onSeqEnd = null;   // callback when sequence finishes
-let typing = false;    // currently animating text
-let typeTimer = null;
-let fullLine = "";     // the full text of the line being typed
+const player = { x: 180, dir: 1, walking:false };
+let cam = 0, tick = 0;
+let curSpeaker = "narr", flashFx = 0;
+const el = (id)=>document.getElementById(id);
 
-// Speaker labels. "flash" = a glimpse of Emy's unspoken interior (Emy POV),
-// surfacing inside Kali's perspective.
-const NAMES = { emy: "EMY", kali: "KALI", narr: "", flash: "EMY — unspoken" };
+/* ---- painterly grain texture, built once ---- */
+const grain = document.createElement("canvas"); grain.width = 150; grain.height = 150;
+(function(){ const g = grain.getContext("2d"); const im = g.createImageData(150,150);
+  for(let i=0;i<im.data.length;i+=4){ const v = 180 + (Math.random()*70|0);
+    im.data[i]=v; im.data[i+1]=v; im.data[i+2]=v; im.data[i+3] = Math.random()*22|0; }
+  g.putImageData(im,0,0); })();
 
-function showDialogue() { dialogue.classList.remove("hidden"); }
-function hideDialogue() { dialogue.classList.add("hidden"); clearSpeaker(); }
+/* small helpers */
+function srand(seed){ let s=seed%2147483647; if(s<=0)s+=2147483646;
+  return ()=>{ s=s*16807%2147483647; return (s-1)/2147483646; }; }
+function rr(x,y,w,h,r,col){ x=Math.round(x);y=Math.round(y);
+  ctx.fillStyle=col; ctx.beginPath(); ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); ctx.fill(); }
+function shade(hex, amt){ const n=parseInt(hex.slice(1),16);
+  let r=Math.max(0,Math.min(255,(n>>16)+amt)), g=Math.max(0,Math.min(255,((n>>8)&255)+amt)),
+      b=Math.max(0,Math.min(255,(n&255)+amt)); return "rgb("+r+","+g+","+b+")"; }
 
-// Restart a CSS animation by toggling its class (force reflow between).
-function retrigger(node, cls) {
-  node.classList.remove(cls);
-  void node.offsetWidth; // reflow
-  node.classList.add(cls);
+/* ---- carriage props (drawn in screen space; pass worldX - cam) ---- */
+function drawScreen(sx, seed){ const x=Math.round(sx); if(x<-150||x>W+20) return;
+  const y=108, w=132, h=78;
+  ctx.fillStyle="#0b0d10"; ctx.fillRect(x-5,y-5,w+10,h+10);          // black frame
+  const rg=ctx.createLinearGradient(0,y,0,y+h);
+  rg.addColorStop(0,"#7c2533"); rg.addColorStop(1,"#36141d");
+  ctx.fillStyle=rg; ctx.fillRect(x,y,w,h);                          // red base
+  const rnd=srand(seed);
+  for(let i=0;i<34;i++){ const bx=x+rnd()*w, by=y+rnd()*h, bw=4+rnd()*20, bh=2+rnd()*7;
+    ctx.fillStyle="rgba("+(150+(rnd()*80|0))+","+(38+(rnd()*34|0))+","+(46+(rnd()*22|0))+","+(0.22+rnd()*0.4)+")";
+    ctx.fillRect(bx,by,bw,bh); }                                    // lava veins
+  ctx.fillStyle="rgba(160,44,48,0.10)"; ctx.fillRect(x-12,y-12,w+24,h+34); // glow
+  ctx.fillStyle="#23303c"; for(let i=0;i<5;i++) ctx.fillRect(x+14,y+h+10+i*5,w-28,2); // vent
+}
+function drawLocker(sx){ const x=Math.round(sx); if(x<-90||x>W+10) return;
+  const y=104, w=58, h=92;
+  const lg=ctx.createLinearGradient(x,0,x+w,0);
+  lg.addColorStop(0,"#67757f"); lg.addColorStop(1,"#4e5a66");
+  ctx.fillStyle=lg; ctx.fillRect(x,y,w,h);
+  ctx.fillStyle="#7a8794"; ctx.fillRect(x,y,w,3);
+  ctx.fillStyle="#c0392b"; ctx.beginPath(); ctx.arc(x+17,y+16,4,0,7); ctx.fill();
+  ctx.beginPath(); ctx.arc(x+31,y+16,4,0,7); ctx.fill();
+  ctx.fillStyle="#3c4651"; for(let i=0;i<4;i++) ctx.fillRect(x+10,y+30+i*6,w-20,2);
+  ctx.fillStyle="#2f3842"; for(let i=0;i<5;i++) ctx.fillRect(x+10,y+62+i*5,w-20,2); // vent
+}
+function drawExitSign(sx){ const x=Math.round(sx); if(x<-90||x>W+10) return;
+  const y=92, w=70, h=30;
+  ctx.fillStyle="#3a3a2a"; ctx.fillRect(x+w/2-1,y-10,2,10);          // mount
+  ctx.fillStyle="#c9b24a"; ctx.fillRect(x,y,w,h);                    // yellow plate
+  ctx.fillStyle="#1c1c14";
+  ctx.beginPath(); ctx.moveTo(x+14,y+7); ctx.lineTo(x+8,y+15); ctx.lineTo(x+20,y+15); ctx.closePath(); ctx.fill();
+  ctx.fillRect(x+12,y+14,4,9);                                       // up arrow
+  ctx.fillRect(x+28,y+9,34,4); ctx.fillRect(x+28,y+18,24,4);         // faux text
+}
+function drawHazard(sx){ const x=Math.round(sx); if(x<-70||x>W+10) return;
+  const y=120, w=46, h=84;
+  ctx.fillStyle="#241d2c"; ctx.fillRect(x,y,w,h);
+  ctx.strokeStyle="#b5462e"; ctx.lineWidth=3;                        // red caging
+  for(let i=-h;i<w;i+=12){ ctx.beginPath(); ctx.moveTo(x+i,y+h); ctx.lineTo(x+i+h,y); ctx.stroke(); }
+  ctx.save(); ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip(); ctx.restore();
+  // warning triangle plate
+  const tx=x+w/2, ty=y+h/2;
+  ctx.fillStyle="#16160f"; ctx.beginPath(); ctx.moveTo(tx,ty-13); ctx.lineTo(tx+13,ty+10); ctx.lineTo(tx-13,ty+10); ctx.closePath(); ctx.fill();
+  ctx.fillStyle="#d9b34a"; ctx.beginPath(); ctx.moveTo(tx,ty-9); ctx.lineTo(tx+9,ty+8); ctx.lineTo(tx-9,ty+8); ctx.closePath(); ctx.fill();
+  ctx.fillStyle="#16160f"; ctx.fillRect(tx-1,ty-4,2,7); ctx.fillRect(tx-1,ty+5,2,2);
+}
+function drawIntercom(sx){ const x=Math.round(sx); if(x<-30||x>W+10) return;
+  const y=150; ctx.fillStyle="#3a4654"; ctx.fillRect(x,y,12,22);
+  ctx.fillStyle="#9fb6cf"; ctx.fillRect(x+3,y+3,6,5);
+  ctx.fillStyle="#c0392b"; ctx.fillRect(x+4,y+12,4,3);
+}
+function drawBench(sx){ const x=Math.round(sx); if(x<-90||x>W+10) return;
+  const y=FLOOR_Y;
+  ctx.fillStyle="rgba(0,0,0,0.25)"; ctx.fillRect(x-2,y+10,72,4);
+  ctx.fillStyle="#3a4654"; ctx.fillRect(x,y-12,68,7);               // seat
+  ctx.fillStyle="#465466"; ctx.fillRect(x,y-26,68,6);               // back
+  ctx.fillStyle="#2b333d"; ctx.fillRect(x+4,y-5,5,16); ctx.fillRect(x+59,y-5,5,16);
+}
+function drawGrating(sx, len){ const x=Math.round(sx), y=FLOOR_Y+16;
+  ctx.fillStyle="#6f6a3a"; ctx.fillRect(x,y,len,16);
+  ctx.fillStyle="#827c46"; ctx.fillRect(x,y,len,2);
+  ctx.fillStyle="#54502c"; for(let i=0;i<len;i+=14) ctx.fillRect(x+i,y,2,16);
+}
+function drawHole(sx){ const x=Math.round(sx); if(x<-90||x>W+20) return;
+  const w=88, h=46, y=WALL_TOP;
+  const sg=ctx.createLinearGradient(0,y,0,y+h);
+  sg.addColorStop(0,"#7e2c20"); sg.addColorStop(1,"#2a1418");        // red apocalyptic sky
+  ctx.fillStyle=sg; ctx.fillRect(x,y,w,h);
+  ctx.fillStyle="rgba(235,215,185,0.8)";
+  const rnd=srand(7); for(let i=0;i<10;i++) ctx.fillRect(x+rnd()*w, y+rnd()*h, 1,1); // stars
+  ctx.fillStyle="#11181c";                                          // torn edge
+  for(let i=0;i<w;i+=8) ctx.fillRect(x+i, y+h-3-(i%16<8?2:0), 8, 5);
+}
+function drawLamp(sx){ const x=Math.round(sx); if(x<-50||x>W+30) return;
+  const fl=0.82+0.18*Math.sin(tick*0.12 + x);
+  ctx.fillStyle="#1b2430"; ctx.fillRect(x-16,WALL_TOP+12,32,5);
+  const grd=ctx.createRadialGradient(x,FLOOR_Y,4,x,FLOOR_Y,90);
+  grd.addColorStop(0,"rgba(217,165,91,"+(0.12*fl)+")"); grd.addColorStop(1,"rgba(217,165,91,0)");
+  ctx.fillStyle=grd; ctx.fillRect(x-90,FLOOR_Y-70,180,110);
+  const cg=ctx.createLinearGradient(0,WALL_TOP+16,0,FLOOR_Y);
+  cg.addColorStop(0,"rgba(217,165,91,"+(0.06*fl)+")"); cg.addColorStop(1,"rgba(217,165,91,0)");
+  ctx.fillStyle=cg; ctx.beginPath(); ctx.moveTo(x-6,WALL_TOP+16); ctx.lineTo(x+6,WALL_TOP+16);
+  ctx.lineTo(x+44,FLOOR_Y); ctx.lineTo(x-44,FLOOR_Y); ctx.closePath(); ctx.fill();
 }
 
-// Step the active character into the light. Narration dims both gently.
-// A "flash" lights Emy in cold blue — we're inside her head, not the room.
-const figEmy = el("fig-emy"), figKali = el("fig-kali");
-function highlightSpeaker(who) {
-  figEmy.classList.toggle("speaking", who === "emy" || who === "flash");
-  figKali.classList.toggle("speaking", who === "kali");
-  figEmy.classList.toggle("flashing", who === "flash");
-}
-function clearSpeaker() {
-  figEmy.classList.remove("speaking", "flashing");
-  figKali.classList.remove("speaking");
-}
-
-function playSequence(seq, done) {
-  queue = seq.slice();
-  onSeqEnd = done || null;
-  showDialogue();
-  nextLine();
+// A clean "[E] Look" prompt floating above the thing you're near (no orbs).
+function promptAt(sx, sy, text){
+  let x=Math.round(sx), y=Math.round(sy)-20;
+  if (x<-60||x>W+60) return;
+  const float = Math.sin(tick*0.1)*1.5;  y+=float;
+  ctx.font="12px Georgia, serif"; ctx.textAlign="left";
+  const tw=ctx.measureText(text).width, padL=22, w=padL+tw+10, bx=x-w/2;
+  rr(bx, y-14, w, 19, 4, "rgba(8,12,12,0.88)");
+  rr(bx+5, y-11, 13, 13, 2, "#e7cd96");          // keycap
+  ctx.fillStyle="#0e140d"; ctx.font="bold 9px Georgia, serif"; ctx.fillText("E", bx+9, y-1);
+  ctx.fillStyle="#e7cd96"; ctx.font="12px Georgia, serif"; ctx.fillText(text, bx+padL, y);
+  ctx.textAlign="left";
 }
 
-function nextLine() {
-  choicesEl.innerHTML = "";
-  if (queue.length === 0) {
-    const cb = onSeqEnd; onSeqEnd = null;
-    if (cb) cb(); else hideDialogue();
-    return;
+/* ---- chibi character (big head, little body), painterly ---- */
+function drawChar(sx, c, dir, walking, lit, cold){
+  const x=Math.round(sx);
+  const bob = walking ? Math.abs(Math.sin(tick*0.22))*3 : Math.sin(tick*0.04)*0.8;
+  const y=Math.round(FLOOR - bob);
+  ctx.fillStyle="rgba(0,0,0,0.32)"; ctx.beginPath(); ctx.ellipse(x,FLOOR+4,14,4,0,0,7); ctx.fill();
+  const skin=cold?"#aabfd2":c.skin, coat=cold?shade(c.coat,26):c.coat, hair=cold?shade(c.hair,22):c.hair;
+  const step=walking?Math.sin(tick*0.22):0;
+  // legs
+  ctx.fillStyle="#2a2630";
+  ctx.fillRect(x-7, y-12+(step>0?2:0), 6, 12); ctx.fillRect(x+1, y-12+(step<0?2:0), 6, 12);
+  // body / coat
+  rr(x-12, y-34, 24, 24, 8, coat);
+  rr(x-12, y-34, 24, 7, 8, shade(coat,16));
+  rr(x-15, y-32, 6, 17, 3, shade(coat,-12)); rr(x+9, y-32, 6, 17, 3, shade(coat,-12)); // arms
+  // head
+  rr(x-13, y-60, 26, 28, 12, skin);
+  // hair
+  rr(x-14, y-62, 28, 16, 12, hair);
+  if(c.longHair){ rr(x-14,y-54,7,24,4,hair); rr(x+7,y-54,7,24,4,hair); }   // Emy long
+  else { rr(x-14,y-52,6,13,3,hair); rr(x+8,y-52,6,13,3,hair); }            // Kali short
+  // blush
+  ctx.fillStyle="rgba(205,120,110,0.22)"; ctx.fillRect(x-10,y-42,5,3); ctx.fillRect(x+5,y-42,5,3);
+  // eyes
+  ctx.fillStyle="#241a14"; const eo=dir>0?1:-1;
+  ctx.fillRect(x-7+eo, y-47, 3, 4); ctx.fillRect(x+4+eo, y-47, 3, 4);
+  // glasses (Kali)
+  if(c.glasses){ ctx.strokeStyle=c.glasses; ctx.lineWidth=1.4;
+    ctx.strokeRect(x-9, y-49, 8, 8); ctx.strokeRect(x+1, y-49, 8, 8);
+    ctx.beginPath(); ctx.moveTo(x-1,y-45); ctx.lineTo(x+1,y-45); ctx.stroke(); }
+  if(lit){ const gg=ctx.createRadialGradient(x,y-26,4,x,y-26,40);
+    gg.addColorStop(0,"rgba(217,165,91,0.18)"); gg.addColorStop(1,"rgba(217,165,91,0)");
+    ctx.fillStyle=gg; ctx.fillRect(x-40,y-64,80,72); }
+  if(cold){ const gg=ctx.createRadialGradient(x,y-26,4,x,y-26,42);
+    gg.addColorStop(0,"rgba(120,165,215,0.22)"); gg.addColorStop(1,"rgba(120,165,215,0)");
+    ctx.fillStyle=gg; ctx.fillRect(x-42,y-66,84,76); }
+}
+
+const KALI = { skin:"#e3bd98", coat:"#4a4250", hair:"#15151c", glasses:"#dfeaf5" };
+const EMY  = { skin:"#d8ab80", coat:"#46523f", hair:"#5d4129", longHair:true };
+
+/* ---- the main render ---- */
+function render(){
+  tick++;
+  const target = Math.max(0, Math.min(WORLD_W - W, player.x - W/2));
+  cam += (target - cam) * 0.12;
+  const c = Math.round(cam);
+
+  // full black (also forms the letterbox bars)
+  ctx.fillStyle="#05070a"; ctx.fillRect(0,0,W,H);
+
+  // wall (blue-teal, vertical gradient)
+  const wg=ctx.createLinearGradient(0,WALL_TOP,0,FLOOR_Y);
+  wg.addColorStop(0,"#41566b"); wg.addColorStop(0.6,"#35485c"); wg.addColorStop(1,"#2b3a4b");
+  ctx.fillStyle=wg; ctx.fillRect(0,WALL_TOP,W,FLOOR_Y-WALL_TOP);
+  // ceiling trim + slats
+  ctx.fillStyle="#4d6076"; ctx.fillRect(0,WALL_TOP,W,12);
+  ctx.fillStyle="#303f4f"; for(let x=-(c%20); x<W; x+=20) ctx.fillRect(x,WALL_TOP+3,9,2);
+  // soft wall grunge blotches (parallax-light)
+  const gr=srand(99); ctx.fillStyle="rgba(20,30,40,0.10)";
+  for(let i=0;i<26;i++){ const bx=((gr()*WORLD_W)-c*0.85); if(bx>-60&&bx<W) ctx.fillRect(bx, WALL_TOP+20+gr()*150, 30+gr()*60, 26+gr()*40); }
+
+  // floor (blue-gray)
+  const fg=ctx.createLinearGradient(0,FLOOR_Y,0,SCENE_BOT);
+  fg.addColorStop(0,"#46566a"); fg.addColorStop(1,"#344151");
+  ctx.fillStyle=fg; ctx.fillRect(0,FLOOR_Y,W,SCENE_BOT-FLOOR_Y);
+  ctx.fillStyle="#26323f"; ctx.fillRect(0,FLOOR_Y,W,3);
+
+  // lamps + their glow
+  for(let lx=200; lx<WORLD_W; lx+=360) drawLamp(lx - c);
+  // long metal grating walkway + a perpendicular stub near the exit
+  drawGrating(360 - c, 2300);
+  ctx.fillStyle="#6f6a3a"; { const vx=2760-c; if(vx>-30&&vx<W) ctx.fillRect(vx, FLOOR_Y+16-34, 16, 34); }
+  // set dressing
+  drawLocker(150 - c);
+  drawScreen(280 - c, 11); drawScreen(560 - c, 23); drawScreen(840 - c, 37);
+  drawScreen(1980 - c, 51); drawScreen(2240 - c, 67);
+  drawHole(1456 - c);
+  drawIntercom(2700 - c); drawExitSign(2790 - c); drawHazard(2756 - c);
+  [620, 980, 2300].forEach(bx=> drawBench(bx - c));
+
+  // proximity "press E" prompts (no orbs)
+  let prompted=false;
+  interactables().forEach(o=>{
+    if (!prompted && canInteract(o) && state.mode==="explore"){ promptAt(o.x - c, o.y, prompt_(o)); prompted=true; }
+  });
+
+  // characters (Emy faces toward the player)
+  drawChar(EMY_X - c, EMY, player.x>EMY_X?1:-1, false, curSpeaker==="emy", curSpeaker==="flash");
+  const emT = emyTarget();
+  if (!prompted && emT!=null && nearEmy() && state.mode==="explore") promptAt(EMY_X - c, 150, emT);
+  drawChar(player.x - c, KALI, player.dir, player.walking, curSpeaker==="kali", false);
+
+  // grain overlay across the scene band (painterly grunge)
+  ctx.globalAlpha=0.5;
+  for(let gx=0; gx<W; gx+=150) for(let gy=WALL_TOP; gy<SCENE_BOT; gy+=150) ctx.drawImage(grain, gx, gy);
+  ctx.globalAlpha=1;
+
+  // vignette
+  const vg=ctx.createRadialGradient(W/2,(WALL_TOP+SCENE_BOT)/2,120,W/2,(WALL_TOP+SCENE_BOT)/2,560);
+  vg.addColorStop(0,"rgba(0,0,0,0)"); vg.addColorStop(1,"rgba(0,0,0,0.5)");
+  ctx.fillStyle=vg; ctx.fillRect(0,WALL_TOP,W,SCENE_BOT-WALL_TOP);
+
+  // re-blacken the letterbox bars (over any glow spill)
+  ctx.fillStyle="#05070a"; ctx.fillRect(0,0,W,WALL_TOP); ctx.fillRect(0,SCENE_BOT,W,BAR);
+
+  // flash overlay
+  if (flashFx>0){ flashFx-=0.012;
+    ctx.fillStyle="rgba(58,106,190,"+(0.30*Math.max(0,flashFx))+")";
+    ctx.fillRect(0,WALL_TOP,W,SCENE_BOT-WALL_TOP); }
+}
+
+function labelAt(x, y, text){
+  ctx.font="11px Georgia, serif"; ctx.textAlign="center";
+  const w=ctx.measureText(text).width+10;
+  ctx.fillStyle="rgba(8,12,12,0.82)"; rr(x-w/2, y-12, w, 15, 3, "rgba(8,12,12,0.82)");
+  ctx.fillStyle="#e7cd96"; ctx.fillText(text, Math.round(x), Math.round(y));
+  ctx.textAlign="left";
+}
+
+/* ===========================================================================
+   INTERACTABLES + PROXIMITY
+   =========================================================================== */
+function objById(id){ return OBJECTS.find(o=>o.id===id); }
+function interactables(){
+  // active = belongs to current act and (for choices) not yet decided is fine
+  return OBJECTS.filter(o => (o.act||1) <= state.act && WX[o.id])
+                .map(o => ({ id:o.id, obj:o, x:WX[o.id].x, y:WX[o.id].y }));
+}
+const RANGE = 30;
+function canInteract(o){ return Math.abs(player.x - o.x) < RANGE; }
+function nearEmy(){ return Math.abs(player.x - EMY_X) < RANGE+6; }
+
+function prompt_(o){ return state.examined[o.id] ? "Look again" : "Look"; }
+
+// What talking to Emy would do right now (returns a prompt label or null).
+function emyTarget(){
+  if (state.kissReady && !state.kissResolved) return "Be with her";
+  if (state.handReady && !state.handsResolved) return "Sit with her";
+  if (state.mode!=="explore") return null;
+  return "Talk";
+}
+
+/* ===========================================================================
+   INPUT
+   =========================================================================== */
+const keys = {};
+function isLeft(){ return keys["ArrowLeft"]||keys["a"]||keys["A"]||touchDir<0; }
+function isRight(){ return keys["ArrowRight"]||keys["d"]||keys["D"]||touchDir>0; }
+let touchDir = 0;
+
+document.addEventListener("keydown", (e)=>{
+  keys[e.key]=true;
+  if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," "].includes(e.key)) e.preventDefault();
+  if (e.key==="ArrowUp"||e.key==="e"||e.key==="E"||e.key===" "||e.key==="Enter"){
+    onAction();
   }
-  const item = queue.shift();
-  renderLine(item);
+});
+document.addEventListener("keyup",(e)=>{ keys[e.key]=false; });
+
+// Touch controls
+function bindHold(id, on, off){
+  const b=el(id);
+  b.addEventListener("touchstart",(e)=>{e.preventDefault();on();},{passive:false});
+  b.addEventListener("touchend",(e)=>{e.preventDefault();off();},{passive:false});
+  b.addEventListener("mousedown",on); b.addEventListener("mouseup",off); b.addEventListener("mouseleave",off);
+}
+bindHold("t-left", ()=>touchDir=-1, ()=>{ if(touchDir<0) touchDir=0; });
+bindHold("t-right",()=>touchDir=1,  ()=>{ if(touchDir>0) touchDir=0; });
+el("t-act").addEventListener("touchstart",(e)=>{e.preventDefault();onAction();},{passive:false});
+el("t-act").addEventListener("click",(e)=>{e.preventDefault();onAction();});
+
+// The single "action" button: advance dialogue, or interact when exploring.
+function onAction(){
+  if (state.mode==="dialogue"){ advanceDialogue(); return; }
+  if (state.mode!=="explore") return;
+  // interact with nearest object, else Emy
+  let best=null, bd=RANGE;
+  interactables().forEach(o=>{ const d=Math.abs(player.x-o.x); if(d<bd){bd=d;best=o;} });
+  if (best){ examineObject(best.obj); return; }
+  if (nearEmy() && emyTarget()){ talkToEmy(); }
 }
 
-function renderLine(item) {
-  // Speaker label styling (+ pop animation on change)
-  speakerEl.className = item.who;
-  speakerEl.textContent = item.who === "narr" ? "❖" : NAMES[item.who];
-  retrigger(speakerEl, "change");
+/* ===========================================================================
+   GAME LOOP
+   =========================================================================== */
+function loop(){
+  if (state.mode==="explore"){
+    let moved=false;
+    if (isLeft() && !isRight()){ player.x -= 1.5; player.dir=-1; moved=true; }
+    else if (isRight() && !isLeft()){ player.x += 1.5; player.dir=1; moved=true; }
+    player.x = Math.max(40, Math.min(WORLD_W-40, player.x));
+    player.walking = moved;
+  } else {
+    player.walking = false;
+  }
+  render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
 
-  // The settle pulse on the whole box each line
-  const inner = el("dialogue-inner");
-  retrigger(inner, "pop");
+/* ===========================================================================
+   DIALOGUE RUNNER (typewriter + flash + speaker lighting)
+   =========================================================================== */
+const dialogue=el("dialogue"), speakerEl=el("speaker"), lineEl=el("line"),
+      choicesEl=el("choices"), continueEl=el("continue"), hintEl=el("hint");
+const NAMES={emy:"EMY",kali:"KALI",narr:"",flash:"EMY — unspoken"};
+let queue=[], onSeqEnd=null, typing=false, typeTimer=null, fullLine="";
 
-  // Light up whoever is speaking; dim the other / both during narration
-  highlightSpeaker(item.who);
+function showDialogue(){ dialogue.classList.remove("hidden"); state.mode="dialogue"; el("touch").classList.remove("show"); }
+function hideDialogue(){ dialogue.classList.add("hidden"); curSpeaker="narr"; if(!state.finished){ state.mode="explore"; el("touch").classList.add("show"); } }
 
-  // A flash slips us into Emy's POV: cold wash over the whole scene.
-  if (item.who === "flash") retrigger(el("flash-fx"), "fire");
-
-  fullLine = item.text;
-  lineEl.innerHTML = "";
-  const span = document.createElement("span");
-  if (item.who === "narr")  span.className = "narr-line";
-  if (item.who === "flash") span.className = "flash-line";
+function playSequence(seq, done){ queue=seq.slice(); onSeqEnd=done||null; showDialogue(); nextLine(); }
+function nextLine(){
+  choicesEl.innerHTML="";
+  if(queue.length===0){ const cb=onSeqEnd; onSeqEnd=null; if(cb) cb(); else hideDialogue(); return; }
+  renderLine(queue.shift());
+}
+function renderLine(item){
+  speakerEl.className=item.who; speakerEl.textContent = item.who==="narr"?"❖":NAMES[item.who];
+  const inner=el("dialogue-inner"); inner.classList.remove("pop"); void inner.offsetWidth; inner.classList.add("pop");
+  curSpeaker=item.who;
+  if(item.who==="flash") flashFx=1;
+  fullLine=item.text; lineEl.innerHTML="";
+  const span=document.createElement("span");
+  if(item.who==="narr") span.className="narr-line";
+  if(item.who==="flash") span.className="flash-line";
   lineEl.appendChild(span);
-
-  // Typewriter effect
-  typing = true;
-  continueEl.classList.add("gone");
-  let i = 0;
-  clearInterval(typeTimer);
-  const speed = 18; // ms per char
-  typeTimer = setInterval(() => {
-    span.textContent = fullLine.slice(0, ++i);
-    if (i >= fullLine.length) {
-      clearInterval(typeTimer);
-      typing = false;
-      continueEl.classList.remove("gone");
-    }
-  }, speed);
+  typing=true; continueEl.classList.add("gone");
+  let i=0; clearInterval(typeTimer);
+  typeTimer=setInterval(()=>{ span.textContent=fullLine.slice(0,++i);
+    if(i>=fullLine.length){ clearInterval(typeTimer); typing=false; continueEl.classList.remove("gone"); } },18);
 }
-
-// Click/tap on dialogue: finish typing, or advance.
-dialogue.addEventListener("click", (e) => {
-  if (e.target.classList.contains("choice")) return; // choices handle themselves
-  if (typing) {
-    // Skip to full line
-    clearInterval(typeTimer);
-    typing = false;
-    lineEl.firstChild.textContent = fullLine;
-    continueEl.classList.remove("gone");
-    return;
-  }
-  if (choicesEl.children.length > 0) return; // waiting on a choice
+function advanceDialogue(){
+  if(typing){ clearInterval(typeTimer); typing=false; lineEl.firstChild.textContent=fullLine; continueEl.classList.remove("gone"); return; }
+  if(choicesEl.children.length>0) return;
   nextLine();
 }
+dialogue.addEventListener("click",(e)=>{ if(e.target.classList.contains("choice")) return; advanceDialogue(); });
 
-);
-
-// --- Choices ----------------------------------------------------------------
-function presentChoice(choiceKey) {
-  const c = CHOICES[choiceKey];
-  // Play the lead-in (a full sequence if `lead` is given, else the single
-  // `prompt` line), then reveal the options.
-  const leadIn = c.lead ? c.lead.slice() : [c.prompt];
-  playSequence(leadIn, () => {
-    continueEl.classList.add("gone");
-    choicesEl.innerHTML = "";
-    c.options.forEach((opt) => {
-      const b = document.createElement("button");
-      b.className = "choice";
-      b.textContent = opt.label;
-      b.onclick = (ev) => {
-        ev.stopPropagation();
-        applyChoice(opt);
-        playSequence(opt.after, () => {
-          hideDialogue();
-          afterChoiceResolved(choiceKey);
-        });
-      };
+/* ===========================================================================
+   CHOICES
+   =========================================================================== */
+function presentChoice(key){
+  const c=CHOICES[key];
+  const lead=c.lead?c.lead.slice():[c.prompt];
+  playSequence(lead, ()=>{
+    continueEl.classList.add("gone"); choicesEl.innerHTML="";
+    c.options.forEach(opt=>{
+      const b=document.createElement("button"); b.className="choice"; b.textContent=opt.label;
+      b.onclick=(ev)=>{ ev.stopPropagation(); applyChoice(opt);
+        playSequence(opt.after, ()=>{ hideDialogue(); afterChoiceResolved(key); }); };
       choicesEl.appendChild(b);
     });
   });
 }
-
-function applyChoice(opt) {
-  if (opt.flag) state.flags[opt.flag] = true;
-  state.warmth += (opt.warmth || 0);
-  updateBond();
-}
-
-function afterChoiceResolved(choiceKey) {
-  if (choiceKey === "door" || choiceKey === "fire") {
-    state.choicesMade++;
-    checkProgress();
-  } else if (choiceKey === "hands") {
-    // If the night ran warm and she held your hand, the kiss beat opens.
-    // Otherwise the night ends here.
-    if (state.flags.hand_held && state.warmth >= KISS_THRESHOLD) {
-      unlockKiss();
-    } else {
-      setTimeout(goToEnding, 700);
-    }
-  } else if (choiceKey === "kiss") {
-    setTimeout(goToEnding, 800);
+function applyChoice(opt){ if(opt.flag) state.flags[opt.flag]=true; state.warmth+=(opt.warmth||0); updateBond(); }
+function afterChoiceResolved(key){
+  if(key==="door"||key==="fire"){ state.choicesMade++; checkProgress(); }
+  else if(key==="hands"){
+    state.handsResolved=true;
+    if(state.flags.hand_held && state.warmth>=KISS_THRESHOLD){
+      state.kissReady=true;
+      setHint("She's still right there. Go to her.");
+    } else { setTimeout(goToEnding,700); }
   }
+  else if(key==="kiss"){ state.kissResolved=true; setTimeout(goToEnding,800); }
 }
 
-// How many objects of a given act have been examined so far.
-function examinedCountForAct(act) {
-  return OBJECTS.filter((o) => (o.act || 1) === act && state.examined[o.id]).length;
-}
-
-// Staged progression: Act 1 -> Act 2 (night deepens) -> the hand beat.
-function checkProgress() {
-  // Reveal Act 2 once Act 1 is mostly explored AND both early choices are made.
-  if (state.act === 1 && state.choicesMade >= 2 && examinedCountForAct(1) >= 6) {
-    revealAct2();
+/* ===========================================================================
+   EXAMINE / TALK / PROGRESSION
+   =========================================================================== */
+function examineObject(obj){
+  if(state.mode!=="explore") return;
+  setHint("");
+  if(obj.choice){
+    if(!state.examined[obj.id]){ state.examined[obj.id]=true; playSequence(obj.lines, ()=>presentChoice(obj.choice)); }
+    else playSequence([{who:"narr",text:"I've already made my peace with this one."}]);
     return;
   }
-  // Unlock the hand beat once Act 2 has been explored a little.
-  if (state.act === 2 && !state.handOffered && examinedCountForAct(2) >= 3) {
-    state.handOffered = true;
-    hintEl.textContent = "The night's gone deep and quiet. Maybe it's just time to sit with her.";
-    hintEl.style.opacity = 1;
-    addInteractHotspot("hands", "sit with her", 50, 60);
-  }
-}
-
-// The night deepens: bring out the Act 2 objects + a quiet transition.
-function revealAct2() {
-  state.act = 2;
-  addHotspotsForAct(2);
-  playSequence(ACT2_INTRO, () => {
+  const firstTime = !state.examined[obj.id];
+  if(firstTime){ state.examined[obj.id]=true; state.warmth+=(obj.bond||0); updateBond(); }
+  playSequence(obj.lines, ()=>{
     hideDialogue();
-    hintEl.textContent = "New shapes in the dark now. Go and look.";
-    hintEl.style.opacity = 1;
-  });
-}
-
-// The kiss only appears after a warm hand-hold.
-function unlockKiss() {
-  state.kissOffered = true;
-  hintEl.textContent = "She's right here. The whole rest of the world has gone quiet.";
-  hintEl.style.opacity = 1;
-  addInteractHotspot("kiss", "lean in", 50, 56, "#f2c98a");
-}
-
-// --- Bond meter -------------------------------------------------------------
-function updateBond() {
-  // Warmth can range from roughly -3 up to ~15. Map it onto 0..5 pips.
-  const filled = Math.max(0, Math.min(5, Math.round(state.warmth / 2.5)));
-  bondPips.forEach((p, idx) => p.classList.toggle("on", idx < filled));
-}
-
-// --- Hotspots ---------------------------------------------------------------
-function buildHotspots() {
-  hotspots.innerHTML = "";
-  addHotspotsForAct(1);
-}
-
-// Add only the objects belonging to a given act (so Act 2 can appear later
-// without disturbing the already-visited Act 1 markers).
-function addHotspotsForAct(act) {
-  OBJECTS.filter((o) => (o.act || 1) === act).forEach((obj) => addHotspot(obj));
-}
-
-function addHotspot(obj) {
-  const b = document.createElement("button");
-  b.className = "hotspot";
-  b.style.left = obj.x + "%";
-  b.style.top  = obj.y + "%";
-  b.dataset.id = obj.id;
-  b.innerHTML =
-    '<span class="ring"></span><span class="dot"></span>' +
-    '<span class="label">' + obj.name + '</span>';
-  b.onclick = () => examineObject(obj, b);
-  hotspots.appendChild(b);
-}
-
-function examineObject(obj, btn) {
-  if (typing || choicesEl.children.length) return; // don't interrupt dialogue
-  hintEl.style.opacity = 0;
-
-  if (obj.choice) {
-    // Choice objects: play their intro line, then present the choice.
-    if (!state.examined[obj.id]) {
-      state.examined[obj.id] = true;
-      btn.classList.add("visited");
-      playSequence(obj.lines, () => presentChoice(obj.choice));
-    } else {
-      // Already decided — gentle reminder, no re-choosing.
-      playSequence([{ who: "narr", text: "You've already made your peace with this one." }]);
-    }
-    return;
-  }
-
-  // Normal object
-  if (!state.examined[obj.id]) {
-    state.examined[obj.id] = true;
-    state.warmth += (obj.bond || 0);
-    updateBond();
-    btn.classList.add("visited");
-  }
-  playSequence(obj.lines, () => {
-    hideDialogue();
+    if(firstTime && ITEMS[obj.id]) addItem(obj.id);
     checkProgress();
   });
 }
 
-// Dynamic story-beat hotspots (the hand, the kiss) added between the figures.
-function addInteractHotspot(choiceKey, label, x, y, dotColor) {
-  const b = document.createElement("button");
-  b.className = "hotspot beat";
-  b.style.left = x + "%";
-  b.style.top  = y + "%";
-  b.dataset.id = choiceKey;
-  b.innerHTML =
-    '<span class="ring"></span><span class="dot"></span>' +
-    '<span class="label">' + label + '</span>';
-  if (dotColor) b.querySelector(".dot").style.background = dotColor;
-  b.onclick = () => {
-    if (typing || choicesEl.children.length) return;
-    hintEl.style.opacity = 0;
-    b.remove(); // a story beat happens once
-    presentChoice(choiceKey);
-  };
-  hotspots.appendChild(b);
+function talkToEmy(){
+  if(state.kissReady && !state.kissResolved){ presentChoice("kiss"); return; }
+  if(state.handReady && !state.handsResolved){ presentChoice("hands"); return; }
+  const seq=EMY_AMBIENT[state.ambientIdx % EMY_AMBIENT.length]; state.ambientIdx++;
+  playSequence(seq);
 }
 
-// --- Ending -----------------------------------------------------------------
-// Five outcomes, chosen from warmth + key flags. Checked most-specific first.
-function resolveEnding() {
-  const w = state.warmth, f = state.flags;
-  // RADIANT: you kissed her and the whole night ran warm.
-  if (f.kissed && w >= 9) return "radiant";
-  // HOPEFUL: you reached for each other (kiss, a held embrace, or a warm hand).
-  if (f.kissed || f.held_close || (f.hand_held && w >= 7)) return "hopeful";
-  // SEVERED: shut down at every turn and the night stayed cold.
-  if (f.hand_none && f.fire_apart && w <= 3) return "severed";
-  // DISTANT: pulled away, or cold throughout.
-  if (f.hand_none || w <= 3) return "distant";
-  // BITTERSWEET: everything in between — reached, almost, not quite.
+function examinedForAct(a){ return OBJECTS.filter(o=>(o.act||1)===a && state.examined[o.id]).length; }
+function checkProgress(){
+  if(state.act===1 && state.choicesMade>=2 && examinedForAct(1)>=6){
+    state.act=2;
+    playSequence(ACT2_INTRO, ()=>{ hideDialogue(); setHint("New shapes down the carriage now. Go and look."); });
+    return;
+  }
+  if(state.act===2 && !state.handReady && examinedForAct(2)>=3){
+    state.handReady=true;
+    setHint("The night's gone deep and quiet. Maybe it's time to just sit with her.");
+  }
+}
+
+/* ===========================================================================
+   HUD
+   =========================================================================== */
+const bondPips=Array.from(document.querySelectorAll("#bond .pip"));
+function updateBond(){ const f=Math.max(0,Math.min(5,Math.round(state.warmth/2.5)));
+  bondPips.forEach((p,i)=>p.classList.toggle("on",i<f)); }
+let hintTimer=null;
+function setHint(t){ hintEl.textContent=t; hintEl.style.opacity = t?1:0; }
+
+/* ---- Inventory ---- */
+const invEl=el("inv"), toastEl=el("toast");
+function addItem(id){
+  if(!ITEMS[id] || state.inventory.includes(id)) return;
+  state.inventory.push(id); renderInv(true);
+  toast("Kept — " + ITEMS[id].name);
+}
+function renderInv(animateLast){
+  invEl.innerHTML="";
+  state.inventory.forEach((id,i)=>{
+    const it=ITEMS[id]; const s=document.createElement("div");
+    s.className = "slot" + (animateLast && i===state.inventory.length-1 ? " new" : "");
+    s.textContent = it.icon; s.title = it.name;
+    s.onclick = ()=> showItem(id);
+    invEl.appendChild(s);
+  });
+}
+function showItem(id){
+  if(state.mode!=="explore") return;     // only inspect while wandering
+  const it=ITEMS[id];
+  playSequence([{ who:"narr", text: it.name + " — " + it.desc }]);
+}
+let toastTimer=null;
+function toast(msg){
+  toastEl.textContent=msg; toastEl.classList.add("show");
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>toastEl.classList.remove("show"),2200);
+}
+
+/* ===========================================================================
+   ENDINGS
+   =========================================================================== */
+function resolveEnding(){
+  const w=state.warmth, f=state.flags;
+  if(f.kissed && w>=9) return "radiant";
+  if(f.kissed || f.held_close || (f.hand_held && w>=7)) return "hopeful";
+  if(f.hand_none && f.fire_apart && w<=3) return "severed";
+  if(f.hand_none || w<=3) return "distant";
   return "bittersweet";
 }
-
-function goToEnding() {
-  state.finished = true;
-  fadeOut(() => {
-    hideDialogue();
-    el("hud").style.display = "none";
-    hotspots.style.display = "none";
-    const key = resolveEnding();
-    const e = ENDINGS[key];
-    el("ending-title").textContent = e.title;
-    // Preserve paragraph breaks; each paragraph fades up in sequence.
-    el("ending-body").innerHTML = e.body
-      .split("\n\n")
-      .map((p, i) => '<span style="animation-delay:' + (0.8 + i * 1.1) + 's">' + p + "</span>")
-      .join("<br><br>");
-    el("ending-tag").textContent = e.tag;
-    const es = el("ending-screen");
-    es.classList.remove("gone");
-    requestAnimationFrame(() => es.classList.remove("hidden"));
-    fadeIn();
+function goToEnding(){
+  state.finished=true; state.mode="ending";
+  el("touch").classList.remove("show");
+  faderShow(()=>{
+    hideDialogueHard();
+    el("hud").style.display="none"; canvas.style.opacity=0.25;
+    const e=ENDINGS[resolveEnding()];
+    el("ending-title").textContent=e.title;
+    el("ending-body").innerHTML=e.body.split("\n\n")
+      .map((p,i)=>'<span style="animation-delay:'+(0.7+i*1.1)+'s">'+p+'</span>').join("<br><br>");
+    el("ending-tag").textContent=e.tag;
+    const es=el("ending-screen"); es.classList.remove("gone");
+    requestAnimationFrame(()=>es.classList.remove("hidden"));
+    faderHide();
   });
 }
-
-// --- Fader helpers ----------------------------------------------------------
-function fadeOut(cb) {
-  faderEl.classList.add("show");
-  setTimeout(cb, 720);
-}
-function fadeIn() {
-  setTimeout(() => faderEl.classList.remove("show"), 60);
-}
+function hideDialogueHard(){ dialogue.classList.add("hidden"); }
+const faderEl=el("fader");
+function faderShow(cb){ faderEl.classList.add("show"); setTimeout(cb,720); }
+function faderHide(){ setTimeout(()=>faderEl.classList.remove("show"),60); }
 
 /* ===========================================================================
-   SOFT MUSIC — generated with the Web Audio API (no external files).
-   A slow, sparse, minor-key arpeggio with a low drone. Toggleable.
+   SOFT MUSIC (Web Audio, generated — no files)
    =========================================================================== */
-let audioCtx = null, musicOn = false, musicNodes = [], musicTimer = null;
-
-function startMusic() {
-  if (musicOn) return;
-  audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-  if (audioCtx.state === "suspended") audioCtx.resume();
-  musicOn = true;
-  el("music-toggle").textContent = "♪ music: on";
-
-  // Master gain — kept gentle.
-  const master = audioCtx.createGain();
-  master.gain.value = 0.0;
+let audioCtx=null, musicOn=false, musicNodes=[], musicTimer=null;
+function startMusic(){
+  if(musicOn) return;
+  audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==="suspended") audioCtx.resume();
+  musicOn=true; el("music-toggle").textContent="♪ music: on";
+  const master=audioCtx.createGain(); master.gain.value=0;
   master.connect(audioCtx.destination);
-  master.gain.linearRampToValueAtTime(0.16, audioCtx.currentTime + 3);
-  musicNodes.push(master);
-
-  // Low drone (two detuned oscillators).
-  [55, 55.4].forEach((f) => {
-    const o = audioCtx.createOscillator();
-    o.type = "sine"; o.frequency.value = f;
-    const g = audioCtx.createGain(); g.gain.value = 0.5;
-    o.connect(g); g.connect(master); o.start();
-    musicNodes.push(o, g);
-  });
-
-  // Sparse arpeggio in A minor pentatonic, played slowly and quietly.
-  const scale = [220, 261.63, 293.66, 329.63, 392.0, 440.0]; // A C D E G A
-  let step = 0;
-  const playNote = () => {
-    if (!musicOn) return;
-    // Occasionally rest, for space/silence.
-    if (Math.random() > 0.28) {
-      const freq = scale[Math.floor(Math.random() * scale.length)];
-      const o = audioCtx.createOscillator();
-      o.type = "triangle"; o.frequency.value = freq;
-      const g = audioCtx.createGain();
-      const t = audioCtx.currentTime;
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.12, t + 0.08);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 2.4);
-      o.connect(g); g.connect(master);
-      o.start(t); o.stop(t + 2.5);
-    }
-    step++;
-    musicTimer = setTimeout(playNote, 1400 + Math.random() * 1400);
-  };
+  master.gain.linearRampToValueAtTime(0.16,audioCtx.currentTime+3); musicNodes.push(master);
+  [55,55.4].forEach(f=>{ const o=audioCtx.createOscillator(); o.type="sine"; o.frequency.value=f;
+    const g=audioCtx.createGain(); g.gain.value=0.5; o.connect(g); g.connect(master); o.start(); musicNodes.push(o,g); });
+  const scale=[220,261.63,293.66,329.63,392.0,440.0];
+  const playNote=()=>{ if(!musicOn) return;
+    if(Math.random()>0.28){ const f=scale[Math.floor(Math.random()*scale.length)];
+      const o=audioCtx.createOscillator(); o.type="triangle"; o.frequency.value=f;
+      const g=audioCtx.createGain(); const t=audioCtx.currentTime;
+      g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(0.12,t+0.08);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+2.4); o.connect(g); g.connect(master); o.start(t); o.stop(t+2.5); }
+    musicTimer=setTimeout(playNote,1400+Math.random()*1400); };
   playNote();
 }
-
-function stopMusic() {
-  musicOn = false;
-  el("music-toggle").textContent = "♪ music: off";
-  clearTimeout(musicTimer);
-  musicNodes.forEach((n) => { try { n.stop ? n.stop() : (n.gain.value = 0); } catch (e) {} });
-  musicNodes = [];
-}
-
-el("music-toggle").onclick = () => (musicOn ? stopMusic() : startMusic());
+function stopMusic(){ musicOn=false; el("music-toggle").textContent="♪ music: off"; clearTimeout(musicTimer);
+  musicNodes.forEach(n=>{try{n.stop?n.stop():(n.gain.value=0);}catch(e){}}); musicNodes=[]; }
+el("music-toggle").onclick=()=>(musicOn?stopMusic():startMusic());
 
 /* ===========================================================================
-   FLOW CONTROL — title -> game -> ending -> replay
+   FLOW
    =========================================================================== */
-function startGame() {
-  // hide title
-  const t = el("title-screen");
-  t.classList.add("hidden");
-  setTimeout(() => t.classList.add("gone"), 800);
-
-  buildHotspots();
-  updateBond();
-  // Try to start music automatically (user already clicked, so audio is allowed).
-  startMusic();
-
-  // Play the opening, then hand control to the player.
-  setTimeout(() => {
-    playSequence(OPENING, () => {
-      hideDialogue();
-      hintEl.style.opacity = 1;
-      hintEl.textContent = "Look around. Touch what glows. Talk when you're ready.";
-    });
-  }, 700);
+function startGame(){
+  const t=el("title-screen"); t.classList.add("hidden"); setTimeout(()=>t.classList.add("gone"),800);
+  updateBond(); renderInv(); startMusic();
+  setTimeout(()=>{ playSequence(OPENING, ()=>{ hideDialogue();
+    setHint("Walk with ← →   ·   press E to interact"); }); }, 700);
 }
-
-function resetGame() {
-  state.warmth = 0;
-  state.flags = {};
-  state.examined = {};
-  state.choicesMade = 0;
-  state.act = 1;
-  state.handOffered = false;
-  state.kissOffered = false;
-  state.finished = false;
-  el("hud").style.display = "";
-  hotspots.style.display = "";
-  buildHotspots();
-  updateBond();
-  const es = el("ending-screen");
-  es.classList.add("hidden");
-  setTimeout(() => es.classList.add("gone"), 600);
-  setTimeout(() => {
-    playSequence(OPENING, () => {
-      hideDialogue();
-      hintEl.style.opacity = 1;
-      hintEl.textContent = "Look around. Touch what glows. Talk when you're ready.";
-    });
-  }, 700);
+function resetGame(){
+  Object.assign(state,{mode:"explore",warmth:0,flags:{},examined:{},inventory:[],choicesMade:0,act:1,
+    handReady:false,handsResolved:false,kissReady:false,kissResolved:false,finished:false,ambientIdx:0});
+  player.x=180; player.dir=1; cam=0;
+  el("hud").style.display=""; canvas.style.opacity=1; renderInv();
+  const es=el("ending-screen"); es.classList.add("hidden"); setTimeout(()=>es.classList.add("gone"),600);
+  setTimeout(()=>{ playSequence(OPENING, ()=>{ hideDialogue();
+    setHint("Walk with ← →   ·   press E to interact"); }); }, 700);
 }
-
-el("start-btn").onclick = startGame;
-el("replay-btn").onclick = () => fadeOut(() => { resetGame(); fadeIn(); });
-
-/* ===========================================================================
-   BACKGROUND PARALLAX — layers drift with the pointer (and device tilt on
-   mobile) for a subtle sense of depth. Each layer has its own "weight".
-   =========================================================================== */
-const parallaxLayers = [
-  { node: el("bg-sky"),    depth: 4  },
-  { node: el("bg-growth"), depth: 14 },
-  { node: el("bg-glow"),   depth: 9  },
-  { node: el("bg-dust"),   depth: 22 },
-];
-let px = 0, py = 0;        // current offset
-let tx = 0, ty = 0;        // target offset (-1..1)
-
-function applyParallax() {
-  // ease toward the target so motion feels soft, not twitchy
-  px += (tx - px) * 0.06;
-  py += (ty - py) * 0.06;
-  parallaxLayers.forEach((l) => {
-    l.node.style.transform =
-      "translate(" + (px * l.depth) + "px," + (py * l.depth) + "px)";
-  });
-  requestAnimationFrame(applyParallax);
-}
-applyParallax();
-
-/* Distant lightning: a rare cold flash, then a long wait. Purely ambient. */
-const lightningEl = el("bg-lightning");
-function scheduleLightning() {
-  const wait = 16000 + Math.random() * 26000; // 16–42s between strikes
-  setTimeout(() => {
-    retrigger(lightningEl, "strike");
-    scheduleLightning();
-  }, wait);
-}
-scheduleLightning();
-
-stage.addEventListener("mousemove", (e) => {
-  const r = stage.getBoundingClientRect();
-  tx = ((e.clientX - r.left) / r.width  - 0.5) * 2;
-  ty = ((e.clientY - r.top)  / r.height - 0.5) * 2;
-});
-stage.addEventListener("mouseleave", () => { tx = 0; ty = 0; });
-window.addEventListener("deviceorientation", (e) => {
-  if (e.gamma == null) return;
-  tx = Math.max(-1, Math.min(1, e.gamma / 30));   // left/right tilt
-  ty = Math.max(-1, Math.min(1, (e.beta - 45) / 30)); // front/back tilt
-}, true);
-
-// Keyboard: space / enter advances dialogue too (desktop comfort).
-document.addEventListener("keydown", (e) => {
-  if ((e.code === "Space" || e.code === "Enter") && !dialogue.classList.contains("hidden")) {
-    e.preventDefault();
-    dialogue.click();
-  }
-});
+el("start-btn").onclick=()=>{ startGame(); };
+el("replay-btn").onclick=()=>faderShow(()=>{ resetGame(); faderHide(); });
 </script>
 </body>
 </html>
