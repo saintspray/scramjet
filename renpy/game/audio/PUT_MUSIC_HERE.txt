@@ -1,0 +1,15 @@
+Drop a soft, looping background track here and name it exactly:
+
+    theme.ogg
+
+The game already looks for  audio/theme.ogg  on startup (see label start in
+script.rpy) and will play + loop it with a 3-second fade-in. The corner ♪
+button mutes/unmutes it. If no file is here, the game just runs in silence.
+
+Good free, no-attribution-or-CC sources for a fitting moody/ambient track:
+  - https://pixabay.com/music/   (search: "ambient piano", "rain", "lonely")
+  - https://incompetech.com/     (Kevin MacLeod, CC-BY — credit him)
+  - https://freemusicarchive.org/
+
+Prefer .ogg or .mp3. If you have an .mp3, either rename the play line in
+script.rpy to "audio/theme.mp3" or convert it to .ogg.

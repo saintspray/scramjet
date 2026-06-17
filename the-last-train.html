@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>The Last Train Never Came</title>
+<!--
+  ============================================================================
+  THE LAST TRAIN NEVER CAME  —  a walkable pixel-art narrative game
+  ----------------------------------------------------------------------------
+  You play as KALI. Walk through a ruined night train carriage, step up to
+  objects and to Emy, and talk. Now and then you slip into a cold "flash" of
+  Emy's unspoken thoughts. Three choices + a kiss lead to one of five endings.
+
+  Single self-contained HTML file. Canvas pixel rendering, no frameworks.
+  Controls:  ← →  or  A D  to walk.   ↑ / E / Space  to interact / continue.
+  Touch:     on-screen arrows + action button.
+
+  All writing lives in the DATA section at the top of <script>. Edit freely.
+  ============================================================================
+-->
+<style>
+  :root{
+    --amber:#d9a55b; --amber-dim:#9c7740; --moss-soft:#6f8466; --moss:#4a5d44;
+    --paper:#e7e2d4; --gray:#8d918d; --gray-dim:#5a5f5a; --blue:#9cc0e8;
+    --glass:rgba(10,15,16,0.88); --font:"Georgia","Times New Roman",serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;background:#000;color:var(--paper);font-family:var(--font);
+    overflow:hidden;-webkit-font-smoothing:antialiased;user-select:none;
+    -webkit-tap-highlight-color:transparent;touch-action:none;}
+  #stage{position:absolute;inset:0;overflow:hidden;background:#05070a;}
+
+  /* The pixel canvas — scaled up crisply, centered, letterboxed. */
+  #game{position:absolute;inset:0;margin:auto;display:block;background:#05070a;}
+
+  /* ---------------- HUD ---------------- */
+  #hud{position:absolute;inset:0;z-index:20;pointer-events:none;}
+  #hint{position:absolute;top:12px;left:50%;transform:translateX(-50%);
+    color:var(--moss-soft);font-size:13px;letter-spacing:1px;font-style:italic;
+    text-align:center;max-width:80%;text-shadow:0 1px 4px #000;transition:opacity .4s;}
+  #loc{position:absolute;top:12px;left:14px;color:var(--gray);font-size:11px;
+    letter-spacing:2px;text-transform:uppercase;text-shadow:0 1px 3px #000;}
+  #music-toggle{position:absolute;top:8px;right:10px;pointer-events:auto;
+    background:var(--glass);color:var(--gray);border:1px solid var(--gray-dim);
+    border-radius:3px;padding:6px 10px;font-size:12px;cursor:pointer;font-family:var(--font);}
+  #music-toggle:hover{color:var(--amber);border-color:var(--amber-dim);}
+  #bond{position:absolute;top:34px;left:14px;display:flex;gap:5px;}
+  #bond .pip{width:7px;height:7px;border-radius:50%;background:var(--gray-dim);transition:all .4s;}
+  #bond .pip.on{background:var(--amber);box-shadow:0 0 7px rgba(217,165,91,.6);}
+  /* Inventory bar */
+  #inv{position:absolute;top:48px;left:14px;display:flex;gap:6px;pointer-events:auto;}
+  #inv .slot{width:34px;height:34px;border:1px solid rgba(111,132,102,.4);border-radius:4px;
+    background:rgba(10,15,16,0.7);display:flex;align-items:center;justify-content:center;
+    font-size:18px;cursor:pointer;transition:all .15s;}
+  #inv .slot:hover{border-color:var(--amber);background:rgba(217,165,91,.12);transform:translateY(-2px);}
+  #inv .slot.new{animation:slotpop .5s ease;}
+  @keyframes slotpop{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.2)}100%{transform:scale(1)}}
+  /* Pickup toast */
+  #toast{position:absolute;top:14px;left:50%;transform:translateX(-50%) translateY(-10px);
+    background:rgba(10,15,16,.9);border:1px solid var(--amber-dim);border-radius:3px;
+    color:var(--amber);padding:7px 14px;font-size:13px;letter-spacing:1px;opacity:0;
+    transition:all .3s;pointer-events:none;}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  /* ---------------- Touch controls ---------------- */
+  #touch{position:absolute;inset:0;z-index:22;pointer-events:none;opacity:0;transition:opacity .3s;}
+  #touch.show{opacity:1;}
+  .tbtn{position:absolute;bottom:18px;width:64px;height:64px;border-radius:50%;
+    background:rgba(20,28,28,0.55);border:1px solid rgba(111,132,102,.5);
+    color:var(--paper);font-size:26px;display:flex;align-items:center;justify-content:center;
+    pointer-events:auto;}
+  .tbtn:active{background:rgba(217,165,91,.3);}
+  #t-left{left:18px;} #t-right{left:92px;} #t-act{right:18px;width:74px;height:74px;font-size:18px;letter-spacing:1px;}
+
+  /* ---------------- Dialogue ---------------- */
+  #dialogue{position:absolute;left:0;right:0;bottom:0;z-index:30;pointer-events:auto;
+    padding:50px 16px 18px;background:linear-gradient(180deg,transparent,var(--glass) 28%);
+    transition:opacity .3s,transform .3s;}
+  #dialogue.hidden{opacity:0;pointer-events:none;transform:translateY(20px);}
+  #dialogue-inner{max-width:720px;margin:0 auto;background:var(--glass);
+    border:1px solid rgba(111,132,102,.35);border-radius:4px;padding:16px 20px 18px;
+    box-shadow:0 -4px 26px rgba(0,0,0,.6);position:relative;}
+  #dialogue-inner.pop{animation:settle .3s ease;}
+  @keyframes settle{0%{transform:translateY(4px)}100%{transform:translateY(0)}}
+  #speaker{position:absolute;top:-13px;left:16px;background:#141a16;
+    border:1px solid rgba(111,132,102,.4);padding:3px 12px;border-radius:2px;
+    font-size:13px;letter-spacing:2px;}
+  #speaker.emy{color:var(--moss-soft);border-color:var(--moss);}
+  #speaker.kali{color:var(--amber);border-color:var(--amber-dim);}
+  #speaker.narr{color:var(--gray);border-color:var(--gray-dim);font-style:italic;}
+  #speaker.flash{color:var(--blue);border-color:#4a6c94;background:#101822;font-style:italic;}
+  #line{min-height:58px;margin-top:6px;font-size:clamp(15px,2.4vw,17px);line-height:1.65;}
+  #line .narr-line{color:var(--gray);font-style:italic;}
+  #line .flash-line{color:#b6d2ee;font-style:italic;text-shadow:0 0 12px rgba(120,165,215,.4);}
+  #choices{display:flex;flex-direction:column;gap:7px;margin-top:12px;}
+  .choice{pointer-events:auto;cursor:pointer;text-align:left;background:rgba(74,93,68,.10);
+    color:var(--paper);border:1px solid rgba(111,132,102,.3);border-radius:3px;
+    padding:10px 13px;font-family:var(--font);font-size:clamp(14px,2.2vw,15px);line-height:1.4;
+    transition:all .15s;}
+  .choice:hover,.choice:focus-visible{background:rgba(217,165,91,.12);border-color:var(--amber);
+    color:var(--amber);outline:none;transform:translateX(3px);}
+  #continue{position:absolute;right:14px;bottom:10px;color:var(--amber-dim);font-size:12px;
+    animation:bob 1.6s ease-in-out infinite;}
+  #continue.gone{display:none;}
+  @keyframes bob{0%,100%{transform:translateY(0);opacity:.7}50%{transform:translateY(3px);opacity:1}}
+
+  /* ---------------- Screens ---------------- */
+  .screen{position:absolute;inset:0;z-index:40;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;text-align:center;padding:30px;transition:opacity .8s;}
+  .hidden{opacity:0;pointer-events:none;} .gone{display:none!important;}
+  #title-screen{background:radial-gradient(120% 95% at 50% 30%,rgba(20,32,26,.5),rgba(6,9,9,.9) 85%);}
+  #title-screen>*{animation:riseIn 1.1s ease both;}
+  #title-screen h1{font-size:clamp(26px,6vw,50px);font-weight:normal;letter-spacing:3px;
+    max-width:14ch;line-height:1.2;text-shadow:0 0 24px rgba(217,165,91,.25);animation-delay:.2s;}
+  #title-screen .sub{margin-top:12px;color:var(--amber-dim);letter-spacing:4px;font-size:13px;
+    text-transform:uppercase;animation-delay:.7s;}
+  #title-screen .dedication{margin-top:24px;color:var(--gray);font-style:italic;font-size:14px;
+    max-width:30ch;line-height:1.6;animation-delay:1.2s;}
+  @keyframes riseIn{from{opacity:0;transform:translateY(16px);filter:blur(4px)}
+    to{opacity:1;transform:translateY(0);filter:blur(0)}}
+  .btn{margin-top:30px;cursor:pointer;background:transparent;color:var(--paper);
+    border:1px solid var(--moss-soft);border-radius:2px;padding:12px 26px;font-family:var(--font);
+    font-size:15px;letter-spacing:2px;transition:all .25s;animation-delay:1.8s;}
+  .btn:hover{background:rgba(111,132,102,.15);border-color:var(--amber);color:var(--amber);}
+  #ending-screen{background:radial-gradient(120% 90% at 50% 40%,#13201a,#050706 85%);}
+  #ending-screen h2{font-size:clamp(22px,5vw,36px);font-weight:normal;letter-spacing:2px;
+    color:var(--amber);margin-bottom:18px;}
+  #ending-screen .ending-text{max-width:46ch;line-height:1.9;font-style:italic;
+    font-size:clamp(15px,2.3vw,17px);}
+  #ending-screen .ending-text span{display:inline;opacity:0;animation:fadeUp 1.6s ease forwards;}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  #ending-screen .ending-tag{margin-top:22px;color:var(--gray);letter-spacing:3px;
+    text-transform:uppercase;font-size:12px;}
+  #fader{position:absolute;inset:0;z-index:50;background:#000;opacity:0;pointer-events:none;
+    transition:opacity .7s;}
+  #fader.show{opacity:1;}
+
+  @media(max-width:560px){#hint{font-size:11px;max-width:70%}#dialogue{padding:42px 10px 14px}}
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="game" width="960" height="420"></canvas>
+
+  <div id="hud">
+    <div id="loc">Carriage 3 — after midnight</div>
+    <div id="hint"></div>
+    <button id="music-toggle">♪ music: off</button>
+    <div id="bond"><div class="pip"></div><div class="pip"></div><div class="pip"></div><div class="pip"></div><div class="pip"></div></div>
+    <div id="inv"></div>
+    <div id="toast"></div>
+  </div>
+
+  <div id="touch">
+    <div class="tbtn" id="t-left">◄</div>
+    <div class="tbtn" id="t-right">►</div>
+    <div class="tbtn" id="t-act">E</div>
+  </div>
+
+  <div id="dialogue" class="hidden">
+    <div id="dialogue-inner">
+      <div id="speaker" class="narr">—</div>
+      <div id="line"></div>
+      <div id="choices"></div>
+      <div id="continue">tap / E ▸</div>
+    </div>
+  </div>
+
+  <div id="title-screen" class="screen">
+    <h1>The Last Train Never Came</h1>
+    <div class="sub">a quiet night, a long way from anywhere</div>
+    <p class="dedication">For someone who makes the dark feel survivable.<br>
+      Move with the arrows. Step close to things, and to her.</p>
+    <button class="btn" id="start-btn">Step aboard</button>
+  </div>
+
+  <div id="ending-screen" class="screen gone">
+    <h2 id="ending-title"></h2>
+    <p class="ending-text" id="ending-body"></p>
+    <p class="ending-tag" id="ending-tag"></p>
+    <button class="btn" id="replay-btn">Again, from the start</button>
+  </div>
+
+  <div id="fader"></div>
+</div>
+
+<script>
+/* ===========================================================================
+   1–4. STORY DATA  (edit text here; speakers: emy / kali / narr / flash)
+   =========================================================================== */
+const OPENING = [
+  { who: "narr",  text: "The platform clock died at 11:54. I keep checking it anyway. Hope's a stubborn little muscle; mine never learned to quit." },
+  { who: "narr",  text: "Rain on a roof that's mostly gone now. Moss in the seams of the tiles. And her — Emy — a few steps down the carriage, the way she always keeps. Close enough to protect. Far enough to bolt." },
+  { who: "kali",  text: "Well. The schedule says the last train left a long time before either of us was born." },
+  { who: "emy",   text: "Then why'd you read the schedule." },
+  { who: "kali",  text: "Hope's a hard habit." },
+  { who: "emy",   text: "Yeah. Heard it kills people." },
+  { who: "flash", text: "I shouldn't've said that. She reads dead schedules for the same dumb reason I read exit signs. I just can't make it come out soft." },
+  { who: "narr",  text: "There it is again. That half-second where I swear I can feel the inside of her — like the wall's got a hairline crack and the light leaks through before she patches it." },
+  { who: "kali",  text: "We're stuck here till the light. Might as well get to know the place." },
+  { who: "emy",   text: "...Fine. But I'm not singing campfire songs." },
+  { who: "narr",  text: "(Walk the carriage. Step up to things and press LOOK. Talk to her when you're ready. And every so often I'll catch a flash of her — the parts she keeps behind her teeth.)" },
+];
+
+const OBJECTS = [
+  { id:"bench", name:"a cracked bench", bond:0, lines:[
+      { who: "narr",  text: "A bench grown soft with rot. Someone carved two sets of initials into it once, then scratched one out. I run my thumb over the scar of it." },
+      { who: "emy",   text: "People used to wait here. Real polite about it. Lined up. Trusted the thing would come." },
+      { who: "kali",  text: "You say 'trusted' like it's a disease." },
+      { who: "emy",   text: "Isn't it? You trust a train. Train stops coming. Now you're just a person standing in the cold, holding a ticket." },
+      { who: "kali",  text: "Or you're a person who got to believe in something, right up until you didn't. That's not nothing." },
+      { who: "emy",   text: "..." },
+      { who: "flash", text: "She still believes in things. I can see her doing it — right now, believing in me. It's the scariest thing I've ever had to stand next to and not flinch away from." },
+      { who: "emy",   text: "Sit down before you fall down. You've been on that foot all day." },
+  ]},
+  { id:"poster", name:"a faded travel poster", bond:1, lines:[
+      { who: "narr", text: "A peeling poster. A coastline that probably doesn't exist anymore. 'THE SEA IS CLOSER THAN YOU THINK.'" },
+      { who: "kali", text: "I've never seen it. The sea. Have you?" },
+      { who: "emy",  text: "Once. From far. It was gray and it was loud and it didn't care about us at all." },
+      { who: "kali", text: "That sounds kind of perfect." },
+      { who: "emy",  text: "...It kind of was." },
+      { who: "kali", text: "Take me sometime. When the roads are quieter." },
+      { who: "emy",  text: "The roads are never gonna be quieter, Kali." },
+      { who: "kali", text: "Then take me when they're loud. I don't mind, if it's with you." },
+      { who: "narr", text: "She looks at the poster very hard, so she doesn't have to look at me." },
+      { who: "flash", text: "Take you to the sea. Like I get to make plans. Like wanting something out loud doesn't just hand the world a list of what to take from me. ...I'd carry you the whole way, though. I'd never say it. But I would." },
+  ]},
+  { id:"radio", name:"a dead radio", bond:1, lines:[
+      { who: "narr", text: "A handheld radio, half its case gone. I thumb the wheel out of habit. Static, then almost-music, then static." },
+      { who: "kali", text: "Wait— go back. There. You hear that?" },
+      { who: "emy",  text: "It's noise." },
+      { who: "kali", text: "It's a song. Somebody, somewhere, is still playing a song. That means somebody's still out there." },
+      { who: "emy",  text: "Or it's a tape on a loop in an empty room, playing for no one." },
+      { who: "kali", text: "God, you're exhausting." },
+      { who: "emy",  text: "I'm careful. There's a difference." },
+      { who: "kali", text: "Is there? From in here it looks like the same coat." },
+      { who: "narr", text: "She turns the volume down to almost-nothing and lets the almost-music stay. A small mercy. For who, neither of us says." },
+      { who: "flash", text: "It's a tape on a loop in an empty room. I know that. I turned it down so it'd keep playing anyway — because she smiled at it for one second. That's the whole truth I keep behind the careful." },
+  ]},
+  { id:"pack", name:"Kali's pack", bond:1, lines:[
+      { who: "narr", text: "My pack, slumped against a seat. The zipper's broken; I've tied it shut with a bootlace." },
+      { who: "emy",  text: "You carry too much. You'll wreck your back hauling other people's junk." },
+      { who: "kali", text: "It's not junk. Look— this is from the kid in the river town. This, the old man traded me for stitches." },
+      { who: "emy",  text: "So you carry strangers around with you." },
+      { who: "kali", text: "I carry proof. That I met them. That they were real and they were kind and the world had them in it for a while." },
+      { who: "emy",  text: "And when the pack gets too heavy?" },
+      { who: "kali", text: "Then I guess I find someone to share the weight." },
+      { who: "narr", text: "She's not looking at the pack when I say it. She's looking at me." },
+      { who: "flash", text: "Share the weight. Her name was right there in my mouth. I swallowed it, like always. Names are just one more thing the world knows to come back for." },
+  ]},
+  { id:"mirror", name:"a shard of mirror", bond:1, lines:[
+      { who: "narr", text: "A long shard of mirror wedged in a window frame. I can see half my face in it. We both can." },
+      { who: "kali", text: "There. That's us. The whole population of the world, far as we know." },
+      { who: "emy",  text: "Population's down. One of us looks like hell." },
+      { who: "kali", text: "You look tired, Emy. Not the same thing." },
+      { who: "emy",  text: "What's the difference." },
+      { who: "kali", text: "Tired means you've still got somewhere to get to. People who give up stop looking tired. They look... finished. You're not finished." },
+      { who: "emy",  text: "How do you know." },
+      { who: "kali", text: "Because you keep checking that I'm still behind you. Every twenty steps. All day." },
+      { who: "emy",  text: "...I do not." },
+      { who: "kali", text: "You did it twice while we've been standing here." },
+      { who: "flash", text: "Three times. She missed one. I check because the day she's not behind me is the day I forget how to keep walking. I'd rather not learn what that's like." },
+  ]},
+  { id:"door", name:"the carriage door", choice:"door", bond:0, lines:[
+      { who: "narr", text: "The end door, swollen in its frame. Half-open. Cold air pours through it like water. I could force it shut. I could leave it." },
+  ]},
+  { id:"fire", name:"a rusted barrel", choice:"fire", bond:0, act:1, lines:[
+      { who: "narr", text: "An old burn barrel somebody dragged aboard. There's enough dry scrap for one small fire. Maybe enough warmth for one of us to actually sleep." },
+  ]},
+  /* ----- ACT TWO objects (revealed when the night deepens) ----- */
+  { id:"ledger", name:"the conductor's ledger", bond:1, act:2, lines:[
+      { who: "narr",  text: "A ledger swollen fat with damp, left on the conductor's stand. Columns of names. Destinations. Every line is someone who rode where we're standing and believed they were going somewhere." },
+      { who: "kali",  text: "Look how many. All these people. All these somewheres." },
+      { who: "emy",   text: "All gone now. Names in a wet book nobody'll ever read." },
+      { who: "kali",  text: "We're reading it." },
+      { who: "emy",   text: "...Yeah. I guess we are." },
+      { who: "flash", text: "She does that. Finds the one thread of not-pointless in a thing and pulls until it holds my weight too. I walked in here sure the world was just a graveyard. She keeps quietly turning it back into a place where people lived." },
+      { who: "narr",  text: "She writes two names, small, in the margin where the paper's still dry. They'll be gone by morning. She writes them anyway." },
+      { who: "emy",   text: "...Leave a little room. In case we come back." },
+  ]},
+  { id:"shoe", name:"a child's shoe", bond:1, act:2, lines:[
+      { who: "narr",  text: "A child's shoe on its side under a seat. Small. The laces still tied in a careful double knot somebody must have learned the slow way." },
+      { who: "emy",   text: "..." },
+      { who: "kali",  text: "Hey. You okay?" },
+      { who: "emy",   text: "Fine. It's just a shoe." },
+      { who: "flash", text: "It is not just a shoe. It's a person who got tied into their laces by somebody who loved them, on a morning that ended like all the mornings ended. I don't have words for that don't crack open, so I hand her 'fine.'" },
+      { who: "kali",  text: "We don't have to look at it." },
+      { who: "emy",   text: "No. Somebody should. Somebody should look at the small things and not flinch. It's the only funeral most of them ever got." },
+      { who: "narr",  text: "She sets the shoe upright, careful, the way you'd straighten something on a grave. Something in my chest goes tight and bright and dangerous, and I have to look away first." },
+  ]},
+  { id:"skylight", name:"a hole in the roof", bond:1, act:2, lines:[
+      { who: "narr",  text: "A jagged hole torn in the carriage roof. Through it, impossibly, stars — more than the dead cities ever let us see. The dark up there doesn't know a thing ended down here." },
+      { who: "kali",  text: "There's the one thing the world couldn't ruin. Too far away to get the news." },
+      { who: "emy",   text: "Make a wish, then. Isn't that the deal." },
+      { who: "kali",  text: "You first." },
+      { who: "emy",   text: "I don't wish. Wishing's just disappointment with extra steps." },
+      { who: "flash", text: "I wished. Of course I wished. I wished for exactly what's standing next to me to still be standing next to me when the light comes up. I'd never say it out loud. Saying it out loud is how the world learns what to take." },
+      { who: "kali",  text: "Okay. Then I'll wish loud enough for the both of us." },
+      { who: "emy",   text: "...Don't waste it on me." },
+      { who: "kali",  text: "Too late. Already did." },
+  ]},
+  { id:"knife", name:"Emy's folding knife", bond:1, act:2, lines:[
+      { who: "narr",  text: "She's got an old folding knife she keeps touching when she thinks I'm not looking. Bone handle, worn pale where her thumb sits. The one thing she carries that isn't strictly for surviving." },
+      { who: "kali",  text: "Can I?" },
+      { who: "emy",   text: "...Careful. It's sharp." },
+      { who: "narr",  text: "She sets it in my hand. From Emy, this is practically handing me her diary." },
+      { who: "kali",  text: "Whose was it?" },
+      { who: "emy",   text: "Someone's. Before. They taught me how to hold it so I'd never have to need anybody to keep me safe." },
+      { who: "flash", text: "And it worked. I never needed anybody. That was the whole point, and the whole prison. Then she walks in and I catch myself wanting to need her, and the knife hasn't got one useful thing to say about that." },
+      { who: "kali",  text: "They'd be glad it kept you safe." },
+      { who: "emy",   text: "Yeah. Funny thing is — lately I keep forgetting to reach for it." },
+      { who: "kali",  text: "Yeah? Why's that." },
+      { who: "emy",   text: "...You know why. Don't make me say it." },
+  ]},
+  { id:"flask", name:"a dented flask", bond:1, act:2, lines:[
+      { who: "narr",  text: "A dented steel flask in an overhead locker, somehow still sealed. She sniffs it, makes a face, takes a swig anyway, and hands it over. Some firewater that outlived the end of everything." },
+      { who: "kali",  text: "God, that's awful." },
+      { who: "emy",   text: "Best awful thing for miles." },
+      { who: "kali",  text: "(coughs) To the last train. May it stay good and gone." },
+      { who: "emy",   text: "To the last train." },
+      { who: "flash", text: "She's loose now, warm, laughing at the burn of it, and I could watch her laugh until the world starts itself over. I'm in so much trouble. The good kind. The kind I'd forgotten was even on the menu." },
+      { who: "emy",   text: "...You're easier to be around than anybody's got a right to be, you know that?" },
+      { who: "kali",  text: "That a compliment?" },
+      { who: "emy",   text: "It's the closest I've got. Take it before I take it back." },
+  ]},
+];
+
+const ACT2_INTRO = [
+  { who: "narr",  text: "The cold settles in for real. The dark gets older. Somewhere down the line a beam ticks as the temperature drops, and the carriage gives up a few more of its secrets — shapes I didn't see before, or wasn't ready to." },
+  { who: "emy",   text: "...It's a long way still, till morning." },
+  { who: "kali",  text: "Good. I'm not done with tonight yet." },
+  { who: "flash", text: "Neither am I. God help me — I don't want this one to end. First time in years I've wanted the dark to last a little longer." },
+];
+
+/* When you talk to Emy before the late beats unlock, she says one of these. */
+const EMY_AMBIENT = [
+  [ { who:"emy", text:"Find anything good out there, or just ghosts?" } ],
+  [ { who:"emy", text:"...You don't have to keep checking on me, you know." },
+    { who:"flash", text:"Keep checking on me. Please keep checking on me." } ],
+  [ { who:"kali", text:"Just making sure you're still here." },
+    { who:"emy", text:"Where would I even go, Kali." } ],
+  [ { who:"emy", text:"Quit hovering. I can feel you hovering." },
+    { who:"kali", text:"It's a small carriage." },
+    { who:"emy", text:"...Yeah. It is." } ],
+];
+
+const CHOICES = {
+  door: {
+    prompt: { who: "emy", text: "Your call, Kali. Leave it open so we can run if we have to... or shut it, and it's just the two of us in here till morning." },
+    options: [
+      { label:"Force it shut. \"Nothing's getting in tonight. Including the cold.\"", flag:"door_closed", warmth:+1, after:[
+        { who: "narr",  text: "It takes both of us, shoulders to the wood. The door groans home. The cold stops moving. The carriage gets very quiet, and very small, and only ours." },
+        { who: "kali",  text: "...Just us, then." },
+        { who: "emy",   text: "Just us. Don't make it weird." },
+        { who: "flash", text: "Just us. Sealed in. No road out and — God help me — I'm not looking for one. First time in years the want's louder than the fear. Don't make it weird, she says. I'm the one making it weird." },
+        { who: "kali",  text: "Too late." },
+      ]},
+      { label:"Leave it open. \"I like knowing the way out.\"", flag:"door_open", warmth:0, after:[
+        { who: "narr",  text: "I leave it. The cold keeps its road through the carriage. Emy plants herself where she can see it — the dark rectangle of out-there." },
+        { who: "kali",  text: "You always need a door, huh." },
+        { who: "emy",   text: "I always need to know I could go. Doesn't mean I will." },
+        { who: "flash", text: "She left it open. For me. Didn't even make me ask. She figured out the shape of my fear and just... built the room around it. Nobody's ever done that. I don't have a word for what it does to me." },
+        { who: "kali",  text: "Okay. As long as you know you don't have to." },
+      ]},
+    ],
+  },
+  fire: {
+    prompt: { who: "emy", text: "One fire. Barely enough scrap for it. Enough warmth for one of us to really sleep, maybe. ...Your call. You're better at calls than me." },
+    options: [
+      { label:"\"We split it. Both half-cold beats one of us alone.\"", flag:"fire_shared", warmth:+1, after:[
+        { who: "narr",  text: "We build it small and sit close, close enough that the question of how close stops being a question. The fire ticks. Our shoulders end up touching. Neither of us moves away." },
+        { who: "kali",  text: "See? Half-cold's not so bad." },
+        { who: "flash", text: "Her shoulder against mine. I could map the exact line of it with my eyes shut. I keep thinking move, you'll wreck it, and my body keeps refusing the order. For once I let it lose the argument." },
+        { who: "emy",   text: "...It's bearable." },
+        { who: "kali",  text: "High praise, coming from you." },
+      ]},
+      { label:"\"You take it, Emy. Sleep — I've got the watch.\"", flag:"fire_gave", warmth:+1, after:[
+        { who: "narr",  text: "She folds down by the barrel, smaller than she'd ever let herself look awake. I take the dark just past the firelight and keep my eyes on the door. On her. Mostly on her." },
+        { who: "emy",   text: "(half-asleep) ...You're staring." },
+        { who: "kali",  text: "I'm keeping watch." },
+        { who: "emy",   text: "Mm. 'm cold." },
+        { who: "flash", text: "She stayed close. She's keeping watch over me like I'm something worth guarding. When did I get soft enough to let someone do that... and why don't I want it to stop." },
+        { who: "narr",  text: "I shift in until the fire's warmth and mine reach her at the same time. Some kindnesses you don't announce." },
+      ]},
+      { label:"\"Take it. I'll be alright over here.\" (keep your distance)", flag:"fire_apart", warmth:-1, after:[
+        { who: "narr",  text: "I give her the fire and take the far seats — a careful stretch of cold floor I put there on purpose. I'm so tired of being the only one reaching. Tonight I let the gap be a gap." },
+        { who: "emy",   text: "...You don't have to sit all the way over there." },
+        { who: "kali",  text: "I'm alright where I am." },
+        { who: "flash", text: "She pulled back. She finally pulled back. I do this — I teach people to stop trying, then I'm gutted when they learn. The worst part isn't the cold. It's how much of me was begging her to argue." },
+      ]},
+    ],
+  },
+  hands: {
+    lead: [
+      { who: "narr",  text: "Later. The fire's low, or the cold's deep — depends which way the night went. We're quiet in the kind of way that's louder than talking." },
+      { who: "flash", text: "Do it. Just do it. Put your hand where she can find it. She's spent all night building me rooms with the doors left open — she did the brave part already. The least I can do is leave one thing of mine out in the cold and not snatch it back." },
+      { who: "narr",  text: "And then — I feel it before I see it. Emy's hand sliding onto the seat in the space between us. Palm up. Not reaching. Just there. From her, that's not a gesture. That's a held breath she's deciding not to take back." },
+    ],
+    options: [
+      { label:"Take her hand.", flag:"hand_held", warmth:+2, after:[
+        { who: "narr",  text: "I put my hand in hers and don't say anything clever about it, so she'll know it's not a joke I'm setting up." },
+        { who: "emy",   text: "Don't. I'll lose my nerve." },
+        { who: "kali",  text: "Okay. I've got it, then. The nerve. I'll hold onto it for you." },
+        { who: "flash", text: "She took it. She didn't make me explain, didn't make it a thing. I put my hand out like a dare to myself and she just... met it. Like it was always going to be easy. Maybe — maybe it gets to be easy." },
+        { who: "narr",  text: "And she holds on. All the rest of the night, through every long hour of it, she holds on." },
+      ]},
+      { label:"Reach — then falter, afraid to get it wrong.", flag:"hand_almost", warmth:0, after:[
+        { who: "narr",  text: "My fingers get close enough to feel the warmth coming off her skin. Then some old caution of mine — don't startle her, don't want it too loud — stalls my hand an inch short." },
+        { who: "flash", text: "She almost did. I felt her get close. Then nothing. ...Maybe I read it wrong. Maybe a hand on a seat is just a hand, and I'm the fool who made it mean the whole world." },
+        { who: "kali",  text: "I'm here. I'm not going anywhere. Whenever you're ready — even if ready's not tonight." },
+        { who: "emy",   text: "...Yeah." },
+      ]},
+      { label:"Leave it lying there. Look at the fire.", flag:"hand_none", warmth:-1, after:[
+        { who: "narr",  text: "I look at the fire instead. I tell myself it's kinder not to crowd her. I'm not sure I believe me." },
+        { who: "flash", text: "She left it there. Left me there — hand out in the cold like an idiot. I knew better. I always know better. Doesn't stop it from carving something out of me that won't grow back the same." },
+        { who: "narr",  text: "After a while, quietly, Emy takes her hand back and folds it into her sleeve. Neither of us says the other thing. The night gets longer." },
+      ]},
+    ],
+  },
+  kiss: {
+    lead: [
+      { who: "narr",  text: "Her hand is still warm in mine. Neither of us has let go, and the space between our shoulders has quietly become no space at all. She looks up. The firelight does something to her face the daylight never gets to." },
+      { who: "flash", text: "She's close. She's so close. Every alarm I own is screaming run, exit, protect it — and underneath all of them, quiet and certain, is the one voice I never let myself hear, saying: stay. Just this once. Stay." },
+      { who: "narr",  text: "Emy doesn't pull back. She just waits, breath caught, letting me be the one to decide. Trusting me with the deciding — which, from her, is the whole confession." },
+    ],
+    options: [
+      { label:"Close the distance. Kiss her.", flag:"kissed", warmth:+2, after:[
+        { who: "narr",  text: "I lean in slow, giving her every chance in the world to stop me. She doesn't take a single one. Her mouth is chapped and warm and it trembles, just slightly, like the rest of her has finally caught up to what she wanted all along." },
+        { who: "narr",  text: "It isn't fireworks. It's quieter than that, and better — two people who outlived the end of the world deciding the world isn't over yet. When we part, she keeps her forehead against mine and won't open her eyes." },
+        { who: "emy",   text: "...Okay. Okay. Wow. Don't let that go to your head." },
+        { who: "kali",  text: "Way too late." },
+        { who: "flash", text: "Whole life I waited for the other shoe to drop. Turns out sometimes the thing coming for you in the dark is just someone who loves you, and the only thing she takes is the being-alone. Take it. It's yours. I don't want it back." },
+        { who: "emy",   text: "Hey. Kali. ...I'm glad it was you. At the end of the line. Out of the whole ruined world — I'm glad it was you." },
+      ]},
+      { label:"Stay close — just hold her tonight.", flag:"held_close", warmth:+1, after:[
+        { who: "narr",  text: "I don't close the last inch. Not tonight. Instead I pull her in against me, and her head finds the curve of my neck like it had been hunting for that exact spot for years." },
+        { who: "kali",  text: "We've got time. I'd rather get this right than get it fast." },
+        { who: "emy",   text: "...Yeah. Yeah, okay. This. This is good." },
+        { who: "flash", text: "She didn't push. She never pushes. She just made a place for me and let me be the one to step into it. Whatever this is — I think it's the first thing I've ever been brave enough to want to keep." },
+      ]},
+    ],
+  },
+};
+
+const ENDINGS = {
+  radiant: { title:"The World, Beginning Again", tag:"— radiant —", body:
+    "I don't sleep, and for once I don't want to. She's curled into me, the knife forgotten in her pack for the first time since I've known her, her breath slow and warm against my throat.\n\n"+
+    "When the light comes up — gray, then gold, then a gold I've never seen the likes of — she stirs and looks at me like she's checking I'm real, decides that I am, and gives me the smile she's been hiding behind sarcasm since the day we met.\n\n"+
+    "\"The sea,\" she says, before I can. \"You wanted to see it. Let's go ruin it by actually looking at the thing.\"\n\n"+
+    "We leave the carriage hand in hand and we don't look back at the dead clock. Let it stay 11:54 forever; we're not waiting on anything anymore. The last train never came — and thank God it didn't, because we might have climbed aboard and ridden away from each other, and never learned that the end of the line was only ever the beginning of us." },
+  hopeful: { title:"Morning, and a Direction", tag:"— hopeful —", body:
+    "The light comes up gray and then, for a moment, gold. I wake with her hand still in mine and her breath against my collar, and for one whole minute I don't reach for a single reason this can't last.\n\n"+
+    "\"The sea,\" I say, before I can talk myself out of it. \"You never did take me. Let's go find out if the poster lied.\"\n\n"+
+    "She huffs a laugh into my shoulder — and then she nods. The train never came. Walking out into the wet, bright ruin of the morning, I understand we both stopped waiting for it somewhere in the night, and started, instead, going somewhere on purpose. Together. It is not safe. It was never going to be safe. But it's ours now, and we're choosing it with our eyes open." },
+  bittersweet: { title:"What the Night Held", tag:"— bittersweet —", body:
+    "I don't sleep, not really. I watch her instead, and the watching feels like a confession my mouth won't agree to make.\n\n"+
+    "By morning the words are still behind my teeth, where they live. But she catches my eye on the way out, and there's no blame in it — just that patient, knowing softness of hers, like she's decided to wait for a train she's almost sure will come.\n\n"+
+    "\"Walk with me a while?\" I ask.\n\n"+
+    "\"Yeah,\" she says. \"A while.\" It isn't everything. It isn't nothing. We walk out side by side into the cold, close enough that our shadows touch, and I let that be the truth I can carry today." },
+  distant: { title:"The Long Way Apart", tag:"— distant —", body:
+    "Morning finds us at opposite ends of a cold carriage, exactly as careful as when the night began.\n\n"+
+    "She gathers her pack without a word and ties the broken zipper with her bootlace. At the door she pauses, and for a second it looks like she might finally say the thing. She doesn't. I don't either. That was always the easier silence to keep.\n\n"+
+    "\"Take care of yourself, Kali,\" she says.\n\n"+
+    "\"You too.\" And I mean it — I mean it so much it aches, which is exactly why I can't manage anything else. I watch her step down onto the dead track and go. All night I wondered which of us would end up needing the way out. I never once thought it would be her using it." },
+  severed: { title:"Two Roads in the Dark", tag:"— severed —", body:
+    "We pass the night like two stones in the same cold riverbed — close together, touching nothing.\n\n"+
+    "I tell myself I tried. I'm not sure it's true. Somewhere in the dark I stopped reaching, and she let me, because letting people go is the one thing she has truly mastered.\n\n"+
+    "By morning she's already at the door when I wake — pack on her shoulder, knife back in her hand like the old days never paused.\n\n"+
+    "\"Easier this way,\" she says, not unkindly. And maybe she's right. Maybe two people who can't make their mouths say the words are just two more things the world quietly wears down to nothing.\n\n"+
+    "She goes one way down the dead track. After a while, I go the other. The carriage keeps its silence. It has had a great deal of practice." },
+};
+
+/* World placement of each object: {x: world-px, y: marker screen-height}. */
+const WX = {
+  poster:{x:300,y:150},  flask:{x:480,y:150},  bench:{x:660,y:286},  shoe:{x:720,y:296},
+  radio:{x:980,y:150},   pack:{x:1240,y:290},  skylight:{x:1500,y:104}, knife:{x:1760,y:286},
+  mirror:{x:2060,y:150}, ledger:{x:2220,y:150}, fire:{x:2520,y:296},  door:{x:2840,y:172},
+};
+const WORLD_W = 3000;   // total carriage length (world px)
+const EMY_X   = 1620;   // where Emy stands
+const KISS_THRESHOLD = 6;
+
+/* Items you pick up by examining certain objects (shown in the inventory). */
+const ITEMS = {
+  poster:  { icon:"🖼️", name:"sea-poster scrap", desc:"A coastline that probably isn't there anymore. I tore off a corner. Proof I meant to go." },
+  radio:   { icon:"📻", name:"dead radio",       desc:"It only catches a loop of almost-music. I kept it on anyway, low, for her." },
+  pack:    { icon:"🎒", name:"a keepsake",        desc:"One of the small proofs I carry that kind people were real, once." },
+  skylight:{ icon:"⭐", name:"a wish",            desc:"I wished she'd still be standing next to me at sunup. Don't tell her." },
+  knife:   { icon:"🔪", name:"Emy's knife",       desc:"She let me hold it. From Emy, that's most of a confession." },
+  mirror:  { icon:"🪞", name:"mirror shard",      desc:"Half my face, half hers. The whole population of the world." },
+  ledger:  { icon:"📓", name:"two names",         desc:"I wrote us into the margin. Gone by morning — but written." },
+  shoe:    { icon:"👟", name:"a child's shoe",    desc:"Laces double-knotted by someone who loved them. I set it upright, like a grave." },
+  flask:   { icon:"🥃", name:"dented flask",      desc:"Best awful thing for miles, she said. She wasn't wrong." },
+};
+
+/* ===========================================================================
+   STATE
+   =========================================================================== */
+const state = {
+  mode:"title",        // title | explore | dialogue | ending
+  warmth:0, flags:{}, examined:{}, inventory:[],
+  choicesMade:0, act:1,
+  handReady:false, handsResolved:false,
+  kissReady:false, kissResolved:false,
+  finished:false,
+  ambientIdx:0,
+};
+
+/* ===========================================================================
+   CANVAS + RENDER
+   =========================================================================== */
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+/* Wide cinematic strip, painterly (smooth) rendering, Saihate-style. */
+const W = 960, H = 420;
+const BAR = 66;            // letterbox bar height (top & bottom)
+const WALL_TOP = BAR;      // carriage interior begins here
+const FLOOR_Y = 300;       // where the wall meets the floor
+const FLOOR  = 332;        // characters' feet line
+const SCENE_BOT = H - BAR; // floor band bottom
+ctx.imageSmoothingEnabled = true;
+
+function fitCanvas(){
+  const ww = window.innerWidth, wh = window.innerHeight;
+  let cw = ww, ch = ww * H / W;
+  if (ch > wh) { ch = wh; cw = wh * W / H; }
+  canvas.style.width = Math.round(cw) + "px";
+  canvas.style.height = Math.round(ch) + "px";
+}
+window.addEventListener("resize", fitCanvas);
+fitCanvas();
+
+const player = { x: 180, dir: 1, walking:false };
+let cam = 0, tick = 0;
+let curSpeaker = "narr", flashFx = 0;
+const el = (id)=>document.getElementById(id);
+
+/* ---- painterly grain texture, built once ---- */
+const grain = document.createElement("canvas"); grain.width = 150; grain.height = 150;
+(function(){ const g = grain.getContext("2d"); const im = g.createImageData(150,150);
+  for(let i=0;i<im.data.length;i+=4){ const v = 180 + (Math.random()*70|0);
+    im.data[i]=v; im.data[i+1]=v; im.data[i+2]=v; im.data[i+3] = Math.random()*22|0; }
+  g.putImageData(im,0,0); })();
+
+/* small helpers */
+function srand(seed){ let s=seed%2147483647; if(s<=0)s+=2147483646;
+  return ()=>{ s=s*16807%2147483647; return (s-1)/2147483646; }; }
+function rr(x,y,w,h,r,col){ x=Math.round(x);y=Math.round(y);
+  ctx.fillStyle=col; ctx.beginPath(); ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); ctx.fill(); }
+function shade(hex, amt){ const n=parseInt(hex.slice(1),16);
+  let r=Math.max(0,Math.min(255,(n>>16)+amt)), g=Math.max(0,Math.min(255,((n>>8)&255)+amt)),
+      b=Math.max(0,Math.min(255,(n&255)+amt)); return "rgb("+r+","+g+","+b+")"; }
+
+/* ---- carriage props (drawn in screen space; pass worldX - cam) ---- */
+function drawScreen(sx, seed){ const x=Math.round(sx); if(x<-150||x>W+20) return;
+  const y=108, w=132, h=78;
+  ctx.fillStyle="#0b0d10"; ctx.fillRect(x-5,y-5,w+10,h+10);          // black frame
+  const rg=ctx.createLinearGradient(0,y,0,y+h);
+  rg.addColorStop(0,"#7c2533"); rg.addColorStop(1,"#36141d");
+  ctx.fillStyle=rg; ctx.fillRect(x,y,w,h);                          // red base
+  const rnd=srand(seed);
+  for(let i=0;i<34;i++){ const bx=x+rnd()*w, by=y+rnd()*h, bw=4+rnd()*20, bh=2+rnd()*7;
+    ctx.fillStyle="rgba("+(150+(rnd()*80|0))+","+(38+(rnd()*34|0))+","+(46+(rnd()*22|0))+","+(0.22+rnd()*0.4)+")";
+    ctx.fillRect(bx,by,bw,bh); }                                    // lava veins
+  ctx.fillStyle="rgba(160,44,48,0.10)"; ctx.fillRect(x-12,y-12,w+24,h+34); // glow
+  ctx.fillStyle="#23303c"; for(let i=0;i<5;i++) ctx.fillRect(x+14,y+h+10+i*5,w-28,2); // vent
+}
+function drawLocker(sx){ const x=Math.round(sx); if(x<-90||x>W+10) return;
+  const y=104, w=58, h=92;
+  const lg=ctx.createLinearGradient(x,0,x+w,0);
+  lg.addColorStop(0,"#67757f"); lg.addColorStop(1,"#4e5a66");
+  ctx.fillStyle=lg; ctx.fillRect(x,y,w,h);
+  ctx.fillStyle="#7a8794"; ctx.fillRect(x,y,w,3);
+  ctx.fillStyle="#c0392b"; ctx.beginPath(); ctx.arc(x+17,y+16,4,0,7); ctx.fill();
+  ctx.beginPath(); ctx.arc(x+31,y+16,4,0,7); ctx.fill();
+  ctx.fillStyle="#3c4651"; for(let i=0;i<4;i++) ctx.fillRect(x+10,y+30+i*6,w-20,2);
+  ctx.fillStyle="#2f3842"; for(let i=0;i<5;i++) ctx.fillRect(x+10,y+62+i*5,w-20,2); // vent
+}
+function drawExitSign(sx){ const x=Math.round(sx); if(x<-90||x>W+10) return;
+  const y=92, w=70, h=30;
+  ctx.fillStyle="#3a3a2a"; ctx.fillRect(x+w/2-1,y-10,2,10);          // mount
+  ctx.fillStyle="#c9b24a"; ctx.fillRect(x,y,w,h);                    // yellow plate
+  ctx.fillStyle="#1c1c14";
+  ctx.beginPath(); ctx.moveTo(x+14,y+7); ctx.lineTo(x+8,y+15); ctx.lineTo(x+20,y+15); ctx.closePath(); ctx.fill();
+  ctx.fillRect(x+12,y+14,4,9);                                       // up arrow
+  ctx.fillRect(x+28,y+9,34,4); ctx.fillRect(x+28,y+18,24,4);         // faux text
+}
+function drawHazard(sx){ const x=Math.round(sx); if(x<-70||x>W+10) return;
+  const y=120, w=46, h=84;
+  ctx.fillStyle="#241d2c"; ctx.fillRect(x,y,w,h);
+  ctx.strokeStyle="#b5462e"; ctx.lineWidth=3;                        // red caging
+  for(let i=-h;i<w;i+=12){ ctx.beginPath(); ctx.moveTo(x+i,y+h); ctx.lineTo(x+i+h,y); ctx.stroke(); }
+  ctx.save(); ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip(); ctx.restore();
+  // warning triangle plate
+  const tx=x+w/2, ty=y+h/2;
+  ctx.fillStyle="#16160f"; ctx.beginPath(); ctx.moveTo(tx,ty-13); ctx.lineTo(tx+13,ty+10); ctx.lineTo(tx-13,ty+10); ctx.closePath(); ctx.fill();
+  ctx.fillStyle="#d9b34a"; ctx.beginPath(); ctx.moveTo(tx,ty-9); ctx.lineTo(tx+9,ty+8); ctx.lineTo(tx-9,ty+8); ctx.closePath(); ctx.fill();
+  ctx.fillStyle="#16160f"; ctx.fillRect(tx-1,ty-4,2,7); ctx.fillRect(tx-1,ty+5,2,2);
+}
+function drawIntercom(sx){ const x=Math.round(sx); if(x<-30||x>W+10) return;
+  const y=150; ctx.fillStyle="#3a4654"; ctx.fillRect(x,y,12,22);
+  ctx.fillStyle="#9fb6cf"; ctx.fillRect(x+3,y+3,6,5);
+  ctx.fillStyle="#c0392b"; ctx.fillRect(x+4,y+12,4,3);
+}
+function drawBench(sx){ const x=Math.round(sx); if(x<-90||x>W+10) return;
+  const y=FLOOR_Y;
+  ctx.fillStyle="rgba(0,0,0,0.25)"; ctx.fillRect(x-2,y+10,72,4);
+  ctx.fillStyle="#3a4654"; ctx.fillRect(x,y-12,68,7);               // seat
+  ctx.fillStyle="#465466"; ctx.fillRect(x,y-26,68,6);               // back
+  ctx.fillStyle="#2b333d"; ctx.fillRect(x+4,y-5,5,16); ctx.fillRect(x+59,y-5,5,16);
+}
+function drawGrating(sx, len){ const x=Math.round(sx), y=FLOOR_Y+16;
+  ctx.fillStyle="#6f6a3a"; ctx.fillRect(x,y,len,16);
+  ctx.fillStyle="#827c46"; ctx.fillRect(x,y,len,2);
+  ctx.fillStyle="#54502c"; for(let i=0;i<len;i+=14) ctx.fillRect(x+i,y,2,16);
+}
+function drawHole(sx){ const x=Math.round(sx); if(x<-90||x>W+20) return;
+  const w=88, h=46, y=WALL_TOP;
+  const sg=ctx.createLinearGradient(0,y,0,y+h);
+  sg.addColorStop(0,"#7e2c20"); sg.addColorStop(1,"#2a1418");        // red apocalyptic sky
+  ctx.fillStyle=sg; ctx.fillRect(x,y,w,h);
+  ctx.fillStyle="rgba(235,215,185,0.8)";
+  const rnd=srand(7); for(let i=0;i<10;i++) ctx.fillRect(x+rnd()*w, y+rnd()*h, 1,1); // stars
+  ctx.fillStyle="#11181c";                                          // torn edge
+  for(let i=0;i<w;i+=8) ctx.fillRect(x+i, y+h-3-(i%16<8?2:0), 8, 5);
+}
+function drawLamp(sx){ const x=Math.round(sx); if(x<-50||x>W+30) return;
+  const fl=0.82+0.18*Math.sin(tick*0.12 + x);
+  ctx.fillStyle="#1b2430"; ctx.fillRect(x-16,WALL_TOP+12,32,5);
+  const grd=ctx.createRadialGradient(x,FLOOR_Y,4,x,FLOOR_Y,90);
+  grd.addColorStop(0,"rgba(217,165,91,"+(0.12*fl)+")"); grd.addColorStop(1,"rgba(217,165,91,0)");
+  ctx.fillStyle=grd; ctx.fillRect(x-90,FLOOR_Y-70,180,110);
+  const cg=ctx.createLinearGradient(0,WALL_TOP+16,0,FLOOR_Y);
+  cg.addColorStop(0,"rgba(217,165,91,"+(0.06*fl)+")"); cg.addColorStop(1,"rgba(217,165,91,0)");
+  ctx.fillStyle=cg; ctx.beginPath(); ctx.moveTo(x-6,WALL_TOP+16); ctx.lineTo(x+6,WALL_TOP+16);
+  ctx.lineTo(x+44,FLOOR_Y); ctx.lineTo(x-44,FLOOR_Y); ctx.closePath(); ctx.fill();
+}
+
+// A clean "[E] Look" prompt floating above the thing you're near (no orbs).
+function promptAt(sx, sy, text){
+  let x=Math.round(sx), y=Math.round(sy)-20;
+  if (x<-60||x>W+60) return;
+  const float = Math.sin(tick*0.1)*1.5;  y+=float;
+  ctx.font="12px Georgia, serif"; ctx.textAlign="left";
+  const tw=ctx.measureText(text).width, padL=22, w=padL+tw+10, bx=x-w/2;
+  rr(bx, y-14, w, 19, 4, "rgba(8,12,12,0.88)");
+  rr(bx+5, y-11, 13, 13, 2, "#e7cd96");          // keycap
+  ctx.fillStyle="#0e140d"; ctx.font="bold 9px Georgia, serif"; ctx.fillText("E", bx+9, y-1);
+  ctx.fillStyle="#e7cd96"; ctx.font="12px Georgia, serif"; ctx.fillText(text, bx+padL, y);
+  ctx.textAlign="left";
+}
+
+/* ---- chibi character (big head, little body), painterly ---- */
+function drawChar(sx, c, dir, walking, lit, cold){
+  const x=Math.round(sx);
+  const bob = walking ? Math.abs(Math.sin(tick*0.22))*3 : Math.sin(tick*0.04)*0.8;
+  const y=Math.round(FLOOR - bob);
+  ctx.fillStyle="rgba(0,0,0,0.32)"; ctx.beginPath(); ctx.ellipse(x,FLOOR+4,14,4,0,0,7); ctx.fill();
+  const skin=cold?"#aabfd2":c.skin, coat=cold?shade(c.coat,26):c.coat, hair=cold?shade(c.hair,22):c.hair;
+  const step=walking?Math.sin(tick*0.22):0;
+  // legs
+  ctx.fillStyle="#2a2630";
+  ctx.fillRect(x-7, y-12+(step>0?2:0), 6, 12); ctx.fillRect(x+1, y-12+(step<0?2:0), 6, 12);
+  // body / coat
+  rr(x-12, y-34, 24, 24, 8, coat);
+  rr(x-12, y-34, 24, 7, 8, shade(coat,16));
+  rr(x-15, y-32, 6, 17, 3, shade(coat,-12)); rr(x+9, y-32, 6, 17, 3, shade(coat,-12)); // arms
+  // head
+  rr(x-13, y-60, 26, 28, 12, skin);
+  // hair
+  rr(x-14, y-62, 28, 16, 12, hair);
+  if(c.longHair){ rr(x-14,y-54,7,24,4,hair); rr(x+7,y-54,7,24,4,hair); }   // Emy long
+  else { rr(x-14,y-52,6,13,3,hair); rr(x+8,y-52,6,13,3,hair); }            // Kali short
+  // blush
+  ctx.fillStyle="rgba(205,120,110,0.22)"; ctx.fillRect(x-10,y-42,5,3); ctx.fillRect(x+5,y-42,5,3);
+  // eyes
+  ctx.fillStyle="#241a14"; const eo=dir>0?1:-1;
+  ctx.fillRect(x-7+eo, y-47, 3, 4); ctx.fillRect(x+4+eo, y-47, 3, 4);
+  // glasses (Kali)
+  if(c.glasses){ ctx.strokeStyle=c.glasses; ctx.lineWidth=1.4;
+    ctx.strokeRect(x-9, y-49, 8, 8); ctx.strokeRect(x+1, y-49, 8, 8);
+    ctx.beginPath(); ctx.moveTo(x-1,y-45); ctx.lineTo(x+1,y-45); ctx.stroke(); }
+  if(lit){ const gg=ctx.createRadialGradient(x,y-26,4,x,y-26,40);
+    gg.addColorStop(0,"rgba(217,165,91,0.18)"); gg.addColorStop(1,"rgba(217,165,91,0)");
+    ctx.fillStyle=gg; ctx.fillRect(x-40,y-64,80,72); }
+  if(cold){ const gg=ctx.createRadialGradient(x,y-26,4,x,y-26,42);
+    gg.addColorStop(0,"rgba(120,165,215,0.22)"); gg.addColorStop(1,"rgba(120,165,215,0)");
+    ctx.fillStyle=gg; ctx.fillRect(x-42,y-66,84,76); }
+}
+
+const KALI = { skin:"#e3bd98", coat:"#4a4250", hair:"#15151c", glasses:"#dfeaf5" };
+const EMY  = { skin:"#d8ab80", coat:"#46523f", hair:"#5d4129", longHair:true };
+
+/* ---- the main render ---- */
+function render(){
+  tick++;
+  const target = Math.max(0, Math.min(WORLD_W - W, player.x - W/2));
+  cam += (target - cam) * 0.12;
+  const c = Math.round(cam);
+
+  // full black (also forms the letterbox bars)
+  ctx.fillStyle="#05070a"; ctx.fillRect(0,0,W,H);
+
+  // wall (blue-teal, vertical gradient)
+  const wg=ctx.createLinearGradient(0,WALL_TOP,0,FLOOR_Y);
+  wg.addColorStop(0,"#41566b"); wg.addColorStop(0.6,"#35485c"); wg.addColorStop(1,"#2b3a4b");
+  ctx.fillStyle=wg; ctx.fillRect(0,WALL_TOP,W,FLOOR_Y-WALL_TOP);
+  // ceiling trim + slats
+  ctx.fillStyle="#4d6076"; ctx.fillRect(0,WALL_TOP,W,12);
+  ctx.fillStyle="#303f4f"; for(let x=-(c%20); x<W; x+=20) ctx.fillRect(x,WALL_TOP+3,9,2);
+  // soft wall grunge blotches (parallax-light)
+  const gr=srand(99); ctx.fillStyle="rgba(20,30,40,0.10)";
+  for(let i=0;i<26;i++){ const bx=((gr()*WORLD_W)-c*0.85); if(bx>-60&&bx<W) ctx.fillRect(bx, WALL_TOP+20+gr()*150, 30+gr()*60, 26+gr()*40); }
+
+  // floor (blue-gray)
+  const fg=ctx.createLinearGradient(0,FLOOR_Y,0,SCENE_BOT);
+  fg.addColorStop(0,"#46566a"); fg.addColorStop(1,"#344151");
+  ctx.fillStyle=fg; ctx.fillRect(0,FLOOR_Y,W,SCENE_BOT-FLOOR_Y);
+  ctx.fillStyle="#26323f"; ctx.fillRect(0,FLOOR_Y,W,3);
+
+  // lamps + their glow
+  for(let lx=200; lx<WORLD_W; lx+=360) drawLamp(lx - c);
+  // long metal grating walkway + a perpendicular stub near the exit
+  drawGrating(360 - c, 2300);
+  ctx.fillStyle="#6f6a3a"; { const vx=2760-c; if(vx>-30&&vx<W) ctx.fillRect(vx, FLOOR_Y+16-34, 16, 34); }
+  // set dressing
+  drawLocker(150 - c);
+  drawScreen(280 - c, 11); drawScreen(560 - c, 23); drawScreen(840 - c, 37);
+  drawScreen(1980 - c, 51); drawScreen(2240 - c, 67);
+  drawHole(1456 - c);
+  drawIntercom(2700 - c); drawExitSign(2790 - c); drawHazard(2756 - c);
+  [620, 980, 2300].forEach(bx=> drawBench(bx - c));
+
+  // proximity "press E" prompts (no orbs)
+  let prompted=false;
+  interactables().forEach(o=>{
+    if (!prompted && canInteract(o) && state.mode==="explore"){ promptAt(o.x - c, o.y, prompt_(o)); prompted=true; }
+  });
+
+  // characters (Emy faces toward the player)
+  drawChar(EMY_X - c, EMY, player.x>EMY_X?1:-1, false, curSpeaker==="emy", curSpeaker==="flash");
+  const emT = emyTarget();
+  if (!prompted && emT!=null && nearEmy() && state.mode==="explore") promptAt(EMY_X - c, 150, emT);
+  drawChar(player.x - c, KALI, player.dir, player.walking, curSpeaker==="kali", false);
+
+  // grain overlay across the scene band (painterly grunge)
+  ctx.globalAlpha=0.5;
+  for(let gx=0; gx<W; gx+=150) for(let gy=WALL_TOP; gy<SCENE_BOT; gy+=150) ctx.drawImage(grain, gx, gy);
+  ctx.globalAlpha=1;
+
+  // vignette
+  const vg=ctx.createRadialGradient(W/2,(WALL_TOP+SCENE_BOT)/2,120,W/2,(WALL_TOP+SCENE_BOT)/2,560);
+  vg.addColorStop(0,"rgba(0,0,0,0)"); vg.addColorStop(1,"rgba(0,0,0,0.5)");
+  ctx.fillStyle=vg; ctx.fillRect(0,WALL_TOP,W,SCENE_BOT-WALL_TOP);
+
+  // re-blacken the letterbox bars (over any glow spill)
+  ctx.fillStyle="#05070a"; ctx.fillRect(0,0,W,WALL_TOP); ctx.fillRect(0,SCENE_BOT,W,BAR);
+
+  // flash overlay
+  if (flashFx>0){ flashFx-=0.012;
+    ctx.fillStyle="rgba(58,106,190,"+(0.30*Math.max(0,flashFx))+")";
+    ctx.fillRect(0,WALL_TOP,W,SCENE_BOT-WALL_TOP); }
+}
+
+function labelAt(x, y, text){
+  ctx.font="11px Georgia, serif"; ctx.textAlign="center";
+  const w=ctx.measureText(text).width+10;
+  ctx.fillStyle="rgba(8,12,12,0.82)"; rr(x-w/2, y-12, w, 15, 3, "rgba(8,12,12,0.82)");
+  ctx.fillStyle="#e7cd96"; ctx.fillText(text, Math.round(x), Math.round(y));
+  ctx.textAlign="left";
+}
+
+/* ===========================================================================
+   INTERACTABLES + PROXIMITY
+   =========================================================================== */
+function objById(id){ return OBJECTS.find(o=>o.id===id); }
+function interactables(){
+  // active = belongs to current act and (for choices) not yet decided is fine
+  return OBJECTS.filter(o => (o.act||1) <= state.act && WX[o.id])
+                .map(o => ({ id:o.id, obj:o, x:WX[o.id].x, y:WX[o.id].y }));
+}
+const RANGE = 30;
+function canInteract(o){ return Math.abs(player.x - o.x) < RANGE; }
+function nearEmy(){ return Math.abs(player.x - EMY_X) < RANGE+6; }
+
+function prompt_(o){ return state.examined[o.id] ? "Look again" : "Look"; }
+
+// What talking to Emy would do right now (returns a prompt label or null).
+function emyTarget(){
+  if (state.kissReady && !state.kissResolved) return "Be with her";
+  if (state.handReady && !state.handsResolved) return "Sit with her";
+  if (state.mode!=="explore") return null;
+  return "Talk";
+}
+
+/* ===========================================================================
+   INPUT
+   =========================================================================== */
+const keys = {};
+function isLeft(){ return keys["ArrowLeft"]||keys["a"]||keys["A"]||touchDir<0; }
+function isRight(){ return keys["ArrowRight"]||keys["d"]||keys["D"]||touchDir>0; }
+let touchDir = 0;
+
+document.addEventListener("keydown", (e)=>{
+  keys[e.key]=true;
+  if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," "].includes(e.key)) e.preventDefault();
+  if (e.key==="ArrowUp"||e.key==="e"||e.key==="E"||e.key===" "||e.key==="Enter"){
+    onAction();
+  }
+});
+document.addEventListener("keyup",(e)=>{ keys[e.key]=false; });
+
+// Touch controls
+function bindHold(id, on, off){
+  const b=el(id);
+  b.addEventListener("touchstart",(e)=>{e.preventDefault();on();},{passive:false});
+  b.addEventListener("touchend",(e)=>{e.preventDefault();off();},{passive:false});
+  b.addEventListener("mousedown",on); b.addEventListener("mouseup",off); b.addEventListener("mouseleave",off);
+}
+bindHold("t-left", ()=>touchDir=-1, ()=>{ if(touchDir<0) touchDir=0; });
+bindHold("t-right",()=>touchDir=1,  ()=>{ if(touchDir>0) touchDir=0; });
+el("t-act").addEventListener("touchstart",(e)=>{e.preventDefault();onAction();},{passive:false});
+el("t-act").addEventListener("click",(e)=>{e.preventDefault();onAction();});
+
+// The single "action" button: advance dialogue, or interact when exploring.
+function onAction(){
+  if (state.mode==="dialogue"){ advanceDialogue(); return; }
+  if (state.mode!=="explore") return;
+  // interact with nearest object, else Emy
+  let best=null, bd=RANGE;
+  interactables().forEach(o=>{ const d=Math.abs(player.x-o.x); if(d<bd){bd=d;best=o;} });
+  if (best){ examineObject(best.obj); return; }
+  if (nearEmy() && emyTarget()){ talkToEmy(); }
+}
+
+/* ===========================================================================
+   GAME LOOP
+   =========================================================================== */
+function loop(){
+  if (state.mode==="explore"){
+    let moved=false;
+    if (isLeft() && !isRight()){ player.x -= 1.5; player.dir=-1; moved=true; }
+    else if (isRight() && !isLeft()){ player.x += 1.5; player.dir=1; moved=true; }
+    player.x = Math.max(40, Math.min(WORLD_W-40, player.x));
+    player.walking = moved;
+  } else {
+    player.walking = false;
+  }
+  render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* ===========================================================================
+   DIALOGUE RUNNER (typewriter + flash + speaker lighting)
+   =========================================================================== */
+const dialogue=el("dialogue"), speakerEl=el("speaker"), lineEl=el("line"),
+      choicesEl=el("choices"), continueEl=el("continue"), hintEl=el("hint");
+const NAMES={emy:"EMY",kali:"KALI",narr:"",flash:"EMY — unspoken"};
+let queue=[], onSeqEnd=null, typing=false, typeTimer=null, fullLine="";
+
+function showDialogue(){ dialogue.classList.remove("hidden"); state.mode="dialogue"; el("touch").classList.remove("show"); }
+function hideDialogue(){ dialogue.classList.add("hidden"); curSpeaker="narr"; if(!state.finished){ state.mode="explore"; el("touch").classList.add("show"); } }
+
+function playSequence(seq, done){ queue=seq.slice(); onSeqEnd=done||null; showDialogue(); nextLine(); }
+function nextLine(){
+  choicesEl.innerHTML="";
+  if(queue.length===0){ const cb=onSeqEnd; onSeqEnd=null; if(cb) cb(); else hideDialogue(); return; }
+  renderLine(queue.shift());
+}
+function renderLine(item){
+  speakerEl.className=item.who; speakerEl.textContent = item.who==="narr"?"❖":NAMES[item.who];
+  const inner=el("dialogue-inner"); inner.classList.remove("pop"); void inner.offsetWidth; inner.classList.add("pop");
+  curSpeaker=item.who;
+  if(item.who==="flash") flashFx=1;
+  fullLine=item.text; lineEl.innerHTML="";
+  const span=document.createElement("span");
+  if(item.who==="narr") span.className="narr-line";
+  if(item.who==="flash") span.className="flash-line";
+  lineEl.appendChild(span);
+  typing=true; continueEl.classList.add("gone");
+  let i=0; clearInterval(typeTimer);
+  typeTimer=setInterval(()=>{ span.textContent=fullLine.slice(0,++i);
+    if(i>=fullLine.length){ clearInterval(typeTimer); typing=false; continueEl.classList.remove("gone"); } },18);
+}
+function advanceDialogue(){
+  if(typing){ clearInterval(typeTimer); typing=false; lineEl.firstChild.textContent=fullLine; continueEl.classList.remove("gone"); return; }
+  if(choicesEl.children.length>0) return;
+  nextLine();
+}
+dialogue.addEventListener("click",(e)=>{ if(e.target.classList.contains("choice")) return; advanceDialogue(); });
+
+/* ===========================================================================
+   CHOICES
+   =========================================================================== */
+function presentChoice(key){
+  const c=CHOICES[key];
+  const lead=c.lead?c.lead.slice():[c.prompt];
+  playSequence(lead, ()=>{
+    continueEl.classList.add("gone"); choicesEl.innerHTML="";
+    c.options.forEach(opt=>{
+      const b=document.createElement("button"); b.className="choice"; b.textContent=opt.label;
+      b.onclick=(ev)=>{ ev.stopPropagation(); applyChoice(opt);
+        playSequence(opt.after, ()=>{ hideDialogue(); afterChoiceResolved(key); }); };
+      choicesEl.appendChild(b);
+    });
+  });
+}
+function applyChoice(opt){ if(opt.flag) state.flags[opt.flag]=true; state.warmth+=(opt.warmth||0); updateBond(); }
+function afterChoiceResolved(key){
+  if(key==="door"||key==="fire"){ state.choicesMade++; checkProgress(); }
+  else if(key==="hands"){
+    state.handsResolved=true;
+    if(state.flags.hand_held && state.warmth>=KISS_THRESHOLD){
+      state.kissReady=true;
+      setHint("She's still right there. Go to her.");
+    } else { setTimeout(goToEnding,700); }
+  }
+  else if(key==="kiss"){ state.kissResolved=true; setTimeout(goToEnding,800); }
+}
+
+/* ===========================================================================
+   EXAMINE / TALK / PROGRESSION
+   =========================================================================== */
+function examineObject(obj){
+  if(state.mode!=="explore") return;
+  setHint("");
+  if(obj.choice){
+    if(!state.examined[obj.id]){ state.examined[obj.id]=true; playSequence(obj.lines, ()=>presentChoice(obj.choice)); }
+    else playSequence([{who:"narr",text:"I've already made my peace with this one."}]);
+    return;
+  }
+  const firstTime = !state.examined[obj.id];
+  if(firstTime){ state.examined[obj.id]=true; state.warmth+=(obj.bond||0); updateBond(); }
+  playSequence(obj.lines, ()=>{
+    hideDialogue();
+    if(firstTime && ITEMS[obj.id]) addItem(obj.id);
+    checkProgress();
+  });
+}
+
+function talkToEmy(){
+  if(state.kissReady && !state.kissResolved){ presentChoice("kiss"); return; }
+  if(state.handReady && !state.handsResolved){ presentChoice("hands"); return; }
+  const seq=EMY_AMBIENT[state.ambientIdx % EMY_AMBIENT.length]; state.ambientIdx++;
+  playSequence(seq);
+}
+
+function examinedForAct(a){ return OBJECTS.filter(o=>(o.act||1)===a && state.examined[o.id]).length; }
+function checkProgress(){
+  if(state.act===1 && state.choicesMade>=2 && examinedForAct(1)>=6){
+    state.act=2;
+    playSequence(ACT2_INTRO, ()=>{ hideDialogue(); setHint("New shapes down the carriage now. Go and look."); });
+    return;
+  }
+  if(state.act===2 && !state.handReady && examinedForAct(2)>=3){
+    state.handReady=true;
+    setHint("The night's gone deep and quiet. Maybe it's time to just sit with her.");
+  }
+}
+
+/* ===========================================================================
+   HUD
+   =========================================================================== */
+const bondPips=Array.from(document.querySelectorAll("#bond .pip"));
+function updateBond(){ const f=Math.max(0,Math.min(5,Math.round(state.warmth/2.5)));
+  bondPips.forEach((p,i)=>p.classList.toggle("on",i<f)); }
+let hintTimer=null;
+function setHint(t){ hintEl.textContent=t; hintEl.style.opacity = t?1:0; }
+
+/* ---- Inventory ---- */
+const invEl=el("inv"), toastEl=el("toast");
+function addItem(id){
+  if(!ITEMS[id] || state.inventory.includes(id)) return;
+  state.inventory.push(id); renderInv(true);
+  toast("Kept — " + ITEMS[id].name);
+}
+function renderInv(animateLast){
+  invEl.innerHTML="";
+  state.inventory.forEach((id,i)=>{
+    const it=ITEMS[id]; const s=document.createElement("div");
+    s.className = "slot" + (animateLast && i===state.inventory.length-1 ? " new" : "");
+    s.textContent = it.icon; s.title = it.name;
+    s.onclick = ()=> showItem(id);
+    invEl.appendChild(s);
+  });
+}
+function showItem(id){
+  if(state.mode!=="explore") return;     // only inspect while wandering
+  const it=ITEMS[id];
+  playSequence([{ who:"narr", text: it.name + " — " + it.desc }]);
+}
+let toastTimer=null;
+function toast(msg){
+  toastEl.textContent=msg; toastEl.classList.add("show");
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>toastEl.classList.remove("show"),2200);
+}
+
+/* ===========================================================================
+   ENDINGS
+   =========================================================================== */
+function resolveEnding(){
+  const w=state.warmth, f=state.flags;
+  if(f.kissed && w>=9) return "radiant";
+  if(f.kissed || f.held_close || (f.hand_held && w>=7)) return "hopeful";
+  if(f.hand_none && f.fire_apart && w<=3) return "severed";
+  if(f.hand_none || w<=3) return "distant";
+  return "bittersweet";
+}
+function goToEnding(){
+  state.finished=true; state.mode="ending";
+  el("touch").classList.remove("show");
+  faderShow(()=>{
+    hideDialogueHard();
+    el("hud").style.display="none"; canvas.style.opacity=0.25;
+    const e=ENDINGS[resolveEnding()];
+    el("ending-title").textContent=e.title;
+    el("ending-body").innerHTML=e.body.split("\n\n")
+      .map((p,i)=>'<span style="animation-delay:'+(0.7+i*1.1)+'s">'+p+'</span>').join("<br><br>");
+    el("ending-tag").textContent=e.tag;
+    const es=el("ending-screen"); es.classList.remove("gone");
+    requestAnimationFrame(()=>es.classList.remove("hidden"));
+    faderHide();
+  });
+}
+function hideDialogueHard(){ dialogue.classList.add("hidden"); }
+const faderEl=el("fader");
+function faderShow(cb){ faderEl.classList.add("show"); setTimeout(cb,720); }
+function faderHide(){ setTimeout(()=>faderEl.classList.remove("show"),60); }
+
+/* ===========================================================================
+   SOFT MUSIC (Web Audio, generated — no files)
+   =========================================================================== */
+let audioCtx=null, musicOn=false, musicNodes=[], musicTimer=null;
+function startMusic(){
+  if(musicOn) return;
+  audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==="suspended") audioCtx.resume();
+  musicOn=true; el("music-toggle").textContent="♪ music: on";
+  const master=audioCtx.createGain(); master.gain.value=0;
+  master.connect(audioCtx.destination);
+  master.gain.linearRampToValueAtTime(0.16,audioCtx.currentTime+3); musicNodes.push(master);
+  [55,55.4].forEach(f=>{ const o=audioCtx.createOscillator(); o.type="sine"; o.frequency.value=f;
+    const g=audioCtx.createGain(); g.gain.value=0.5; o.connect(g); g.connect(master); o.start(); musicNodes.push(o,g); });
+  const scale=[220,261.63,293.66,329.63,392.0,440.0];
+  const playNote=()=>{ if(!musicOn) return;
+    if(Math.random()>0.28){ const f=scale[Math.floor(Math.random()*scale.length)];
+      const o=audioCtx.createOscillator(); o.type="triangle"; o.frequency.value=f;
+      const g=audioCtx.createGain(); const t=audioCtx.currentTime;
+      g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(0.12,t+0.08);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+2.4); o.connect(g); g.connect(master); o.start(t); o.stop(t+2.5); }
+    musicTimer=setTimeout(playNote,1400+Math.random()*1400); };
+  playNote();
+}
+function stopMusic(){ musicOn=false; el("music-toggle").textContent="♪ music: off"; clearTimeout(musicTimer);
+  musicNodes.forEach(n=>{try{n.stop?n.stop():(n.gain.value=0);}catch(e){}}); musicNodes=[]; }
+el("music-toggle").onclick=()=>(musicOn?stopMusic():startMusic());
+
+/* ===========================================================================
+   FLOW
+   =========================================================================== */
+function startGame(){
+  const t=el("title-screen"); t.classList.add("hidden"); setTimeout(()=>t.classList.add("gone"),800);
+  updateBond(); renderInv(); startMusic();
+  setTimeout(()=>{ playSequence(OPENING, ()=>{ hideDialogue();
+    setHint("Walk with ← →   ·   press E to interact"); }); }, 700);
+}
+function resetGame(){
+  Object.assign(state,{mode:"explore",warmth:0,flags:{},examined:{},inventory:[],choicesMade:0,act:1,
+    handReady:false,handsResolved:false,kissReady:false,kissResolved:false,finished:false,ambientIdx:0});
+  player.x=180; player.dir=1; cam=0;
+  el("hud").style.display=""; canvas.style.opacity=1; renderInv();
+  const es=el("ending-screen"); es.classList.add("hidden"); setTimeout(()=>es.classList.add("gone"),600);
+  setTimeout(()=>{ playSequence(OPENING, ()=>{ hideDialogue();
+    setHint("Walk with ← →   ·   press E to interact"); }); }, 700);
+}
+el("start-btn").onclick=()=>{ startGame(); };
+el("replay-btn").onclick=()=>faderShow(()=>{ resetGame(); faderHide(); });
+</script>
+</body>
+</html>
