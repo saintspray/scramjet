@@ -78,11 +78,67 @@
   /* Lo-fi ordered-dither / pixel grid — the texture that makes it feel like a
      small, hand-made twilight game rather than crisp vector art. */
   #bg-dither {
-    opacity: 0.14; mix-blend-mode: overlay;
+    opacity: 0.16; mix-blend-mode: overlay;
     background-image:
       repeating-linear-gradient(0deg,  rgba(0,0,0,0.6) 0 1px, transparent 1px 2px),
       repeating-linear-gradient(90deg, rgba(0,0,0,0.6) 0 1px, transparent 1px 2px);
     background-size: 3px 3px;
+  }
+
+  /* Rain falling through the broken roof. Two layers at different speeds/angles
+     for depth. Built from thin repeating gradients scrolled downward. */
+  #bg-rain {
+    opacity: 0.22; mix-blend-mode: screen;
+    background-image: repeating-linear-gradient(
+      102deg, transparent 0 7px, rgba(170,195,220,0.7) 7px 8px, transparent 8px 14px);
+    background-size: 14px 110px;
+    animation: rainfall 0.55s linear infinite;
+  }
+  #bg-rain2 {
+    opacity: 0.14; mix-blend-mode: screen;
+    background-image: repeating-linear-gradient(
+      99deg, transparent 0 11px, rgba(150,175,205,0.6) 11px 12px, transparent 12px 22px);
+    background-size: 22px 150px;
+    animation: rainfall 0.9s linear infinite;
+  }
+  @keyframes rainfall {
+    from { background-position: 0 0; }
+    to   { background-position: -24px 150px; }
+  }
+
+  /* Cold mist pooling along the floor, drifting slowly sideways. */
+  #bg-mist {
+    background:
+      radial-gradient(70% 30% at 30% 102%, rgba(120,140,135,0.18), transparent 70%),
+      radial-gradient(80% 34% at 75% 104%, rgba(110,130,128,0.16), transparent 70%);
+    animation: mistdrift 26s ease-in-out infinite;
+  }
+  @keyframes mistdrift {
+    0%,100% { transform: translateX(-3%); }
+    50%     { transform: translateX(3%); }
+  }
+
+  /* Distant lightning: mostly invisible, with rare cold flashes (JS triggers
+     the .strike class for a quick double-blink). */
+  #bg-lightning {
+    background: linear-gradient(180deg, rgba(150,180,220,0.5), transparent 55%);
+    opacity: 0; mix-blend-mode: screen;
+  }
+  #bg-lightning.strike { animation: lightning 1.1s ease-out; }
+  @keyframes lightning {
+    0%   { opacity: 0; }
+    4%   { opacity: 0.55; }
+    9%   { opacity: 0.05; }
+    14%  { opacity: 0.7; }
+    24%  { opacity: 0; }
+    100% { opacity: 0; }
+  }
+
+  /* Unifying color grade — a cool teal/amber wash that pulls the whole palette
+     together into one moody, slightly-desaturated picture. */
+  #bg-grade {
+    mix-blend-mode: soft-light; opacity: 0.6;
+    background: linear-gradient(180deg, #2a4a6e 0%, #1c2a26 55%, #3a2a1c 100%);
   }
   /* Distant overgrowth silhouette */
   #bg-growth {
@@ -277,7 +333,11 @@
   .gone   { display: none !important; }
 
   /* ---- Title screen ----------------------------------------------------- */
-  #title-screen { background: radial-gradient(120% 90% at 50% 30%, #14201a, #080b09 80%); }
+  /* Semi-transparent so the rainy station + the two silhouettes show behind. */
+  #title-screen {
+    background: radial-gradient(120% 95% at 50% 28%,
+      rgba(20,32,26,0.55), rgba(8,11,9,0.86) 85%);
+  }
   /* staggered rise-in for each title element */
   #title-screen > * { animation: riseIn 1.1s ease both; }
   #title-screen h1          { animation-delay: 0.2s; }
@@ -511,7 +571,12 @@
   <div id="bg-growth"   class="bg-layer"></div>
   <div id="bg-glow"     class="bg-layer"></div>
   <div id="bg-dust"     class="bg-layer"></div>
+  <div id="bg-rain"     class="bg-layer"></div>
+  <div id="bg-rain2"    class="bg-layer"></div>
+  <div id="bg-mist"     class="bg-layer"></div>
+  <div id="bg-lightning" class="bg-layer"></div>
   <div id="bg-dither"   class="bg-layer"></div>
+  <div id="bg-grade"    class="bg-layer"></div>
   <div id="bg-grit"     class="bg-layer"></div>
 
   <!-- Worn hanging station sign — the "end of the line" motif -->
@@ -1527,6 +1592,17 @@ function applyParallax() {
   requestAnimationFrame(applyParallax);
 }
 applyParallax();
+
+/* Distant lightning: a rare cold flash, then a long wait. Purely ambient. */
+const lightningEl = el("bg-lightning");
+function scheduleLightning() {
+  const wait = 16000 + Math.random() * 26000; // 16–42s between strikes
+  setTimeout(() => {
+    retrigger(lightningEl, "strike");
+    scheduleLightning();
+  }, wait);
+}
+scheduleLightning();
 
 stage.addEventListener("mousemove", (e) => {
   const r = stage.getBoundingClientRect();
