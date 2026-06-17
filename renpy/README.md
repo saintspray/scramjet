@@ -10,8 +10,9 @@ endings (radiant, hopeful, bittersweet, distant, severed).
 
 ## Run it (about 5 minutes of setup)
 
-1. Download **Ren'Py** (free, Windows/Mac/Linux) from <https://www.renpy.org/>
-   and install it. Launch the Ren'Py launcher.
+1. Download **Ren'Py 8** (free, Windows/Mac/Linux) from <https://www.renpy.org/>
+   and install it. Launch the Ren'Py launcher. (Use version 8 — the rain,
+   mist, blur and color-grade effects rely on its modern renderer.)
 2. In the launcher, click **Create New Project**, give it a name, and finish
    the wizard. Ren'Py makes a project folder containing a `game/` subfolder.
 3. Copy **`game/script.rpy`** from here over the `game/script.rpy` in your new
@@ -27,14 +28,27 @@ In the launcher, with the project selected:
 - **Build Web** makes a browser version you can host or share via a link.
 - Android/iOS are supported too (a bit more setup — see the Ren'Py docs).
 
+## What the graphics already do
+
+This version leans on Ren'Py's GPU rendering, so it ships with real atmosphere
+and **no image files needed**:
+
+- **Particle rain** (two depth layers) via Ren'Py's `SnowBlossom`.
+- **Blurred drifting mist** along the floor.
+- **Random distant lightning** flashes.
+- A **blurred twilight gradient** background and a unifying cool color grade
+  (`matrixcolor`), plus a blurred cold wash during Emy's flashes.
+- Characters composited from parts (Emy: brown hair + mossy coat; Kali: short
+  black hair, glasses, dusk-violet coat).
+
+All of this is defined in the art block near the top of `script.rpy`.
+
 ## Making it prettier (optional, later)
 
-The art and music are placeholders so it runs with zero extra files:
-
-- **Portraits / backgrounds:** replace the `image bg station = ...` and
-  `image fig emy = ...` / `image fig kali = ...` lines near the top of
-  `script.rpy` with real PNGs, e.g. `image fig kali = "kali.png"`. Drop the
-  PNGs into the `game/` folder.
+- **Real portraits / backgrounds:** replace the `image bg station = ...` and
+  `image fig emy = ...` / `image fig kali = ...` lines with PNGs, e.g.
+  `image fig kali = "kali.png"`. Drop the PNGs into the `game/` folder. The
+  rain/mist/lightning overlay keeps working over real art automatically.
   - Emy: medium brown hair, scrappy/mossy layers.
   - Kali: short black hair, clear-framed round glasses.
 - **Music:** add a track to `game/` and uncomment/add `play music "song.ogg"`

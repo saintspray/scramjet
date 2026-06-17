@@ -32,21 +32,104 @@ define ef = Character("Emy — unspoken", color="#9cc0e8",
 # Kali's first-person narration uses plain narrator lines ("like this").
 
 
-# ----- PLACEHOLDER ART (swap for real images later) -------------------------
-# Background: a dim, ruined station. Replace with: image bg station = "station.png"
-image bg station = Solid("#0c100d")
+# ----- ART (built at runtime from Ren'Py displayables — no image files) ------
+# These take advantage of Ren'Py's GPU compositing: blurred gradients, particle
+# rain, animated mist and lightning. Swap any `image` for a PNG when you have
+# real art (e.g.  image bg station = "station.png").
 
-# Character figures as simple colored shapes. Replace with PNG portraits.
-#   Emy  : medium brown hair, mossy jacket.
-#   Kali : short black hair, clear glasses, dusk-violet coat.
-image fig emy  = Transform(Solid("#45503f"), xysize=(96, 250), xalign=0.30, yalign=1.0)
-image fig kali = Transform(Solid("#4a4250"), xysize=(96, 250), xalign=0.70, yalign=1.0)
+# Background: a dim, ruined station. We fake a smooth twilight by stacking color
+# bands and blurring them heavily, then darkening the whole thing a touch.
+image bg station = Transform(
+    Composite(
+        (1280, 720),
+        (0,   0),   Solid("#0d1411"),                      # base green-black
+        (0,   0),   Solid("#1c2c46", xysize=(1280, 300)),  # cold twilight at top
+        (0, 430),   Solid("#3a2a1c", xysize=(1280, 140)),  # faint amber midband
+        (0, 540),   Solid("#06080a", xysize=(1280, 180)),  # dark floor
+    ),
+    blur=70, matrixcolor=BrightnessMatrix(-0.04) * SaturationMatrix(0.92),
+)
 
-# Full-screen cold wash used during Emy flashes.
-image flash_tint = Transform(Solid("#3a6abe"), alpha=0.22)
+# Character figures, composited from simple parts so they read as people.
+#   Emy : medium brown hair, mossy coat.
+#   Kali: short black hair, clear glasses, dusk-violet coat.
+image fig emy = Transform(
+    Composite(
+        (110, 270),
+        (7,  60),  Solid("#45503f", xysize=(96, 210)),   # coat
+        (28,  4),  Solid("#5a3f26", xysize=(54, 78)),    # brown hair (behind)
+        (33, 10),  Solid("#d3a87f", xysize=(44, 56)),    # face
+        (30, 10),  Solid("#5a3f26", xysize=(50, 17)),    # swept fringe
+    ),
+    xalign=0.30, yalign=1.0, zoom=1.05,
+)
+image fig kali = Transform(
+    Composite(
+        (110, 270),
+        (7,  60),  Solid("#4a4250", xysize=(96, 210)),   # dusk-violet coat
+        (33, 12),  Solid("#dcb491", xysize=(44, 56)),    # face
+        (30,  4),  Solid("#161620", xysize=(50, 26)),    # short black hair
+        (34, 30),  Solid("#cfe0ee", xysize=(40, 4)),     # glasses bridge/frame
+    ),
+    xalign=0.70, yalign=1.0, zoom=1.05,
+)
 
-# Soft vignette to keep it intimate (a dark frame).
-image vignette = Transform(Solid("#000000"), alpha=0.0)
+# Full-screen cold wash used during Emy flashes (with a blurred glow).
+image flash_tint = Transform(Solid("#3a6abe"), alpha=0.22, blur=8)
+
+# --- Atmosphere pieces ------------------------------------------------------
+# A single thin rain streak; SnowBlossom spawns many and animates them falling.
+image rain_drop = Solid("#aac3dc", xysize=(2, 16))
+image rain = SnowBlossom(
+    Transform("rain_drop", alpha=0.5),
+    count=150, border=40,
+    xspeed=(40, 70), yspeed=(900, 1200), fast=True,
+)
+# A heavier, closer rain layer for depth.
+image rain_near = SnowBlossom(
+    Transform(Solid("#c2d6ea", xysize=(3, 26)), alpha=0.35),
+    count=50, border=40,
+    xspeed=(60, 90), yspeed=(1300, 1600), fast=True,
+)
+
+# Cold mist pooling at the floor, blurred soft, drifting sideways.
+image mist:
+    Solid("#8aa099", xysize=(1700, 220))
+    blur 45
+    alpha 0.12
+    yalign 1.04
+    block:
+        xoffset -70
+        linear 16.0 xoffset 70
+        linear 16.0 xoffset -70
+        repeat
+
+# Distant lightning: long random waits, then a quick cold double-flash.
+image lightning:
+    Solid("#9ab4dc")
+    alpha 0.0
+    block:
+        choice:
+            18.0
+        choice:
+            27.0
+        choice:
+            36.0
+        ease 0.05 alpha 0.5
+        ease 0.06 alpha 0.05
+        ease 0.05 alpha 0.65
+        ease 0.55 alpha 0.0
+        repeat
+
+# The atmosphere overlay: rain + mist + lightning + a cool color wash. Shown
+# for the whole game so it carries across every scene.
+screen atmosphere():
+    zorder 60
+    add "lightning"
+    add "rain"
+    add "rain_near"
+    add "mist"
+    add Solid("#16263a") alpha 0.10        # unifying cool grade
 
 
 # ----- STATE ----------------------------------------------------------------
@@ -75,6 +158,7 @@ label flash(line):
 # ===========================================================================
 label start:
     scene bg station with fade
+    show screen atmosphere      # rain, mist, lightning, color grade (whole game)
     show fig emy
     show fig kali with dissolve
 
