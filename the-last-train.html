@@ -67,10 +67,22 @@
   /* ---- Layered atmospheric background (CSS-only "art") ------------------- */
   .bg-layer { position: absolute; inset: 0; pointer-events: none; }
 
-  /* Cold night sky bleeding through a broken ceiling */
+  /* Cold night sky bleeding through a broken ceiling — a liminal twilight that
+     leans Saihate-blue at the top, then sinks into ruined green-black. */
   #bg-sky {
     background:
-      radial-gradient(120% 80% at 70% -10%, #20312b 0%, #0d1411 45%, #080b09 100%);
+      linear-gradient(180deg, #1a2740 0%, #16202e 18%, #0d1411 48%, #080b09 100%),
+      radial-gradient(120% 80% at 70% -10%, rgba(60,90,130,0.35) 0%, transparent 45%);
+  }
+
+  /* Lo-fi ordered-dither / pixel grid — the texture that makes it feel like a
+     small, hand-made twilight game rather than crisp vector art. */
+  #bg-dither {
+    opacity: 0.14; mix-blend-mode: overlay;
+    background-image:
+      repeating-linear-gradient(0deg,  rgba(0,0,0,0.6) 0 1px, transparent 1px 2px),
+      repeating-linear-gradient(90deg, rgba(0,0,0,0.6) 0 1px, transparent 1px 2px);
+    background-size: 3px 3px;
   }
   /* Distant overgrowth silhouette */
   #bg-growth {
@@ -105,6 +117,32 @@
     from { background-position: 0 0, 0 0, 0 0, 0 0, 0 0; }
     to   { background-position: -120px -300px, 80px -300px, -60px -300px, 100px -300px, -90px -300px; }
   }
+  /* Worn enamel station sign, hanging crooked from a dead ceiling. */
+  #station-sign {
+    position: absolute; top: 12%; left: 50%;
+    transform: translateX(-50%) rotate(-1.2deg);
+    text-align: center; pointer-events: none; z-index: 2;
+    padding: 8px 22px;
+    background: linear-gradient(180deg, #21302c, #161f1c);
+    border: 2px solid #33453d; border-radius: 3px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.55), inset 0 0 14px rgba(0,0,0,0.5);
+    opacity: 0.78;
+    animation: signSway 9s ease-in-out infinite;
+    transform-origin: top center;
+  }
+  #station-sign .sign-line {
+    font-size: clamp(16px, 3.4vw, 26px); letter-spacing: 6px;
+    color: #c8cfc4; text-shadow: 0 0 10px rgba(217,165,91,0.25), 0 2px 3px #000;
+  }
+  #station-sign .sign-sub {
+    margin-top: 3px; font-size: clamp(8px, 1.6vw, 11px); letter-spacing: 3px;
+    color: var(--amber-dim); text-transform: lowercase;
+  }
+  @keyframes signSway {
+    0%,100% { transform: translateX(-50%) rotate(-1.2deg); }
+    50%     { transform: translateX(-50%) rotate(0.6deg); }
+  }
+
   /* Heavy vignette to keep everything intimate and dim */
   #bg-vignette {
     background: radial-gradient(110% 90% at 50% 50%, transparent 50%, rgba(0,0,0,0.7) 100%);
@@ -181,16 +219,49 @@
     transform: translateX(-50%) translateY(-6px) scale(1.04);
     z-index: 5;
   }
-  .figure .head { position:absolute; top:0; left:50%; transform:translateX(-50%);
-    width: 30px; height: 30px; border-radius: 50%;
+  .figure .head { position:absolute; top:6px; left:50%; transform:translateX(-50%);
+    width: 30px; height: 32px; border-radius: 48% 48% 46% 46%; z-index: 2;
     transition: box-shadow 0.4s ease; }
   .figure.speaking .head { box-shadow: 0 0 14px 2px rgba(217,165,91,0.4); }
-  .figure .body { position:absolute; top:26px; left:50%; transform:translateX(-50%);
-    width: 44px; height: 150px; border-radius: 22px 22px 8px 8px; }
-  #fig-emy  .head { background: #3a3f3a; } /* Emy: darker, hood up */
-  #fig-emy  .body { background: linear-gradient(180deg, #3a3f3a, #2a2e2a); }
-  #fig-kali .head { background: #5a4a3a; }
-  #fig-kali .body { background: linear-gradient(180deg, #5a4a3a, #4a3d30); }
+  .figure .body { position:absolute; top:30px; left:50%; transform:translateX(-50%);
+    width: 44px; height: 148px; border-radius: 22px 22px 8px 8px; z-index: 1; }
+
+  /* --- Emy: medium-length brown hair, scrappy survivor layers --- */
+  #fig-emy  .head { background: #d3a87f; }            /* warm skin */
+  #fig-emy  .hair-back {                              /* hair framing & falling past jaw */
+    position:absolute; top:2px; left:50%; transform:translateX(-50%);
+    width:42px; height:58px; z-index:0;
+    background: linear-gradient(180deg, #6b4a2e 0%, #543820 70%, #3f2a18 100%);
+    border-radius: 22px 22px 16px 16px;
+  }
+  #fig-emy  .fringe {                                 /* swept fringe over the brow */
+    position:absolute; top:4px; left:50%; transform:translateX(-50%) rotate(-3deg);
+    width:34px; height:15px; z-index:3;
+    background: linear-gradient(180deg, #6b4a2e, #543820);
+    border-radius: 16px 16px 10px 10px;
+  }
+  #fig-emy  .body { background: linear-gradient(180deg, #45503f, #2c3328); } /* mossy jacket */
+
+  /* --- Kali: short black hair, clear-framed glasses, calmer palette --- */
+  #fig-kali .head { background: #dcb491; }            /* warm skin */
+  #fig-kali .hair-cap {                               /* cropped black hair, neat */
+    position:absolute; top:2px; left:50%; transform:translateX(-50%);
+    width:34px; height:22px; z-index:3;
+    background: linear-gradient(180deg, #1d1d22, #0e0e12);
+    border-radius: 18px 18px 9px 9px;
+  }
+  #fig-kali .glasses {                                /* clear frames, faint glass glint */
+    position:absolute; top:18px; left:50%; transform:translateX(-50%);
+    width:26px; height:2px; background:#cfe0ee; z-index:4; border-radius:2px;
+  }
+  #fig-kali .glasses::before, #fig-kali .glasses::after {
+    content:""; position:absolute; top:-4px; width:9px; height:9px; border-radius:50%;
+    border:1.5px solid #d8eaf7; background:rgba(185,215,240,0.18);
+    box-shadow:0 0 4px rgba(200,225,245,0.45);
+  }
+  #fig-kali .glasses::before { left:-1px; }
+  #fig-kali .glasses::after  { right:-1px; }
+  #fig-kali .body { background: linear-gradient(180deg, #4a4250, #2f2a38); } /* dusk-violet coat */
 
   /* =========================================================================
      SCREENS (title / game / ending)
@@ -341,6 +412,11 @@
   #speaker.emy  { color: var(--moss-soft);  border-color: var(--moss); }
   #speaker.kali { color: var(--amber);      border-color: var(--amber-dim); }
   #speaker.narr { color: var(--gray);       border-color: var(--gray-dim); font-style: italic; }
+  /* Emy's unspoken interior — cold blue, set apart from everything else */
+  #speaker.flash {
+    color: #9cc0e8; border-color: #4a6c94; font-style: italic; letter-spacing: 1px;
+    background: #101822;
+  }
 
   #line {
     min-height: 64px; margin-top: 8px;
@@ -348,6 +424,11 @@
     color: var(--paper);
   }
   #line .narr-line { color: var(--gray); font-style: italic; }
+  /* the flash text reads like a thought, not speech */
+  #line .flash-line {
+    color: #b6d2ee; font-style: italic;
+    text-shadow: 0 0 14px rgba(120,165,215,0.45);
+  }
 
   /* Choices */
   #choices { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
@@ -378,6 +459,32 @@
   #bond .pip { width: 7px; height: 7px; border-radius: 50%; background: var(--gray-dim); transition: all .4s; }
   #bond .pip.on { background: var(--amber); box-shadow: 0 0 8px rgba(217,165,91,0.6); }
 
+  /* =========================================================================
+     EMY-POV FLASH — the game is played as Kali, but now and then we slip into
+     Emy's head. When that happens, the warm amber world goes cold and blue for
+     a beat, and her unspoken thoughts surface.
+     ========================================================================= */
+  #flash-fx {
+    position: absolute; inset: 0; z-index: 15; pointer-events: none; opacity: 0;
+    background:
+      radial-gradient(120% 90% at 50% 42%, rgba(90,125,180,0.28), rgba(18,28,52,0.6) 100%);
+    mix-blend-mode: screen;
+  }
+  #flash-fx.fire { animation: flashPulse 2.4s ease; }
+  @keyframes flashPulse {
+    0%   { opacity: 0; }
+    8%   { opacity: 0.9; }   /* first blink */
+    16%  { opacity: 0.35; }
+    24%  { opacity: 1; }     /* settle into the flash */
+    85%  { opacity: 0.8; }
+    100% { opacity: 0; }
+  }
+  /* Emy's figure when we're inside her head: cold-lit, not amber-lit */
+  .figure.flashing {
+    filter: brightness(1.1) saturate(0.55) hue-rotate(-12deg)
+      drop-shadow(0 0 20px rgba(120,160,210,0.55)) !important;
+  }
+
   /* Fade-to-black overlay for transitions */
   #fader {
     position: absolute; inset: 0; z-index: 40; background: #000;
@@ -404,16 +511,33 @@
   <div id="bg-growth"   class="bg-layer"></div>
   <div id="bg-glow"     class="bg-layer"></div>
   <div id="bg-dust"     class="bg-layer"></div>
+  <div id="bg-dither"   class="bg-layer"></div>
   <div id="bg-grit"     class="bg-layer"></div>
 
-  <!-- The two figures, always present in the room -->
-  <div id="fig-emy"  class="figure"><div class="head"></div><div class="body"></div></div>
-  <div id="fig-kali" class="figure"><div class="head"></div><div class="body"></div></div>
+  <!-- Worn hanging station sign — the "end of the line" motif -->
+  <div id="station-sign">
+    <div class="sign-line">WELLS&nbsp;END</div>
+    <div class="sign-sub">━━ end of the line ━━</div>
+  </div>
+
+  <!-- The two figures, always present in the room.
+       Emy: medium brown hair, scrappy. Kali: short black hair + clear glasses. -->
+  <div id="fig-emy"  class="figure">
+    <div class="hair-back"></div><div class="head"></div>
+    <div class="fringe"></div><div class="body"></div>
+  </div>
+  <div id="fig-kali" class="figure">
+    <div class="head"></div><div class="hair-cap"></div>
+    <div class="glasses"></div><div class="body"></div>
+  </div>
 
   <!-- ============ INTERACTIVE OBJECTS ============ -->
   <div id="hotspots"></div>
 
   <div id="bg-vignette" class="bg-layer"></div>
+
+  <!-- Emy-POV "flash" overlay: a cold blue wash when we slip into her head -->
+  <div id="flash-fx"></div>
 
   <!-- ============ HUD ============ -->
   <div id="hud">
@@ -471,17 +595,21 @@
 /* ---------------------------------------------------------------------------
    1. OPENING — plays once when you "Step inside"
    --------------------------------------------------------------------------- */
+// Note on perspective: this night is told as KALI. The plain narration (❖) is
+// her voice, her lens. The cold "EMY — unspoken" lines are FLASHES — moments
+// where the wall between them thins and we glimpse what Emy will never say.
 const OPENING = [
-  { who: "narr", text: "The platform clock died at 11:54. It's been 11:54 for what feels like years." },
-  { who: "narr", text: "Rain on a roof that mostly isn't there anymore. Moss in the seams of the tiles. Somewhere, water finding its level." },
-  { who: "kali", text: "Well. The schedule said the last train left a long time before either of us was born." },
-  { who: "emy",  text: "Then why'd you read the schedule." },
-  { who: "kali", text: "Hope's a hard habit, Emy." },
-  { who: "emy",  text: "Yeah. Heard it kills people." },
-  { who: "narr", text: "She doesn't mean it. Or she means it and wishes she didn't. With Emy it's usually both." },
-  { who: "kali", text: "We're stuck here till the light. Might as well get to know the place." },
-  { who: "emy",  text: "...Fine. But I'm not singing campfire songs." },
-  { who: "narr", text: "(Look around. Touch the things that glow. Talk when you want. There's no wrong pace tonight.)" },
+  { who: "narr",  text: "The platform clock died at 11:54. I keep checking it anyway. Hope's a stubborn little muscle; mine never learned to quit." },
+  { who: "narr",  text: "Rain on a roof that's mostly gone now. Moss in the seams of the tiles. And her — Emy — three steps ahead of me, the way she always walks. Close enough to protect. Far enough to bolt." },
+  { who: "kali",  text: "Well. The schedule says the last train left a long time before either of us was born." },
+  { who: "emy",   text: "Then why'd you read the schedule." },
+  { who: "kali",  text: "Hope's a hard habit." },
+  { who: "emy",   text: "Yeah. Heard it kills people." },
+  { who: "flash", text: "I shouldn't've said that. She reads dead schedules for the same dumb reason I read exit signs. I just can't make it come out soft." },
+  { who: "narr",  text: "There it is again. That half-second where I swear I can feel the inside of her — like the wall's got a hairline crack and the light leaks through before she patches it." },
+  { who: "kali",  text: "We're stuck here till the light. Might as well get to know the place." },
+  { who: "emy",   text: "...Fine. But I'm not singing campfire songs." },
+  { who: "narr",  text: "(I'm Kali. This is my night to walk — touch what glows, talk when I'm ready. And every so often I'll catch a flash of her. The parts she keeps behind her teeth.)" },
 ];
 
 /* ---------------------------------------------------------------------------
@@ -497,13 +625,14 @@ const OBJECTS = [
     x: 24, y: 70,
     bond: 0,
     lines: [
-      { who: "narr", text: "A bench grown soft with rot. Someone carved two sets of initials into it once, then scratched one out." },
-      { who: "emy",  text: "People used to wait here. Real polite about it. Lined up. Trusted the thing would come." },
-      { who: "kali", text: "You say 'trusted' like it's a disease." },
-      { who: "emy",  text: "Isn't it? You trust a train. Train stops coming. Now you're just a person standing in the cold, holding a ticket." },
-      { who: "kali", text: "Or you're a person who got to believe in something, right up until you didn't. That's not nothing." },
-      { who: "emy",  text: "..." },
-      { who: "emy",  text: "Sit down before you fall down. You've been on that foot all day." },
+      { who: "narr",  text: "A bench grown soft with rot. Someone carved two sets of initials into it once, then scratched one out. I run my thumb over the scar of it." },
+      { who: "emy",   text: "People used to wait here. Real polite about it. Lined up. Trusted the thing would come." },
+      { who: "kali",  text: "You say 'trusted' like it's a disease." },
+      { who: "emy",   text: "Isn't it? You trust a train. Train stops coming. Now you're just a person standing in the cold, holding a ticket." },
+      { who: "kali",  text: "Or you're a person who got to believe in something, right up until you didn't. That's not nothing." },
+      { who: "emy",   text: "..." },
+      { who: "flash", text: "She still believes in things. I can see her doing it — right now, believing in me. It's the scariest thing I've ever had to stand next to and not flinch away from." },
+      { who: "emy",   text: "Sit down before you fall down. You've been on that foot all day." },
     ],
   },
   {
@@ -519,8 +648,9 @@ const OBJECTS = [
       { who: "emy",  text: "...It kind of was." },
       { who: "kali", text: "Take me sometime. When the roads are quieter." },
       { who: "emy",  text: "The roads are never gonna be quieter, Kali." },
-      { who: "kali", text: "Then take me when they're loud. I don't mind, if it's with you." },
-      { who: "narr", text: "Emy looks at the poster very hard, so she doesn't have to look at anything else." },
+      { who: "kali",  text: "Then take me when they're loud. I don't mind, if it's with you." },
+      { who: "narr",  text: "She looks at the poster very hard, so she doesn't have to look at me." },
+      { who: "flash", text: "Take you to the sea. Like I get to make plans. Like wanting something out loud doesn't just hand the world a list of what to take from me. ...I'd carry you the whole way, though. I'd never say it. But I would." },
     ],
   },
   {
@@ -537,7 +667,8 @@ const OBJECTS = [
       { who: "kali", text: "God, you're exhausting." },
       { who: "emy",  text: "I'm careful. There's a difference." },
       { who: "kali", text: "Is there? From in here it looks like the same coat." },
-      { who: "narr", text: "She turns the volume down to almost-nothing and lets the almost-music stay. A small mercy. For who, neither says." },
+      { who: "narr",  text: "She turns the volume down to almost-nothing and lets the almost-music stay. A small mercy. For who, neither of us says." },
+      { who: "flash", text: "It's a tape on a loop in an empty room. I know that. I turned it down so it'd keep playing anyway — because she smiled at it for one second. That's the whole truth I keep behind the careful." },
     ],
   },
   {
@@ -552,8 +683,9 @@ const OBJECTS = [
       { who: "emy",  text: "So you carry strangers around with you." },
       { who: "kali", text: "I carry proof. That I met them. That they were real and they were kind and the world had them in it for a while." },
       { who: "emy",  text: "And when the pack gets too heavy?" },
-      { who: "kali", text: "Then I guess I find someone to share the weight." },
-      { who: "narr", text: "She's not looking at the pack when she says it." },
+      { who: "kali",  text: "Then I guess I find someone to share the weight." },
+      { who: "narr",  text: "She's not looking at the pack when she says it. She's looking at me." },
+      { who: "flash", text: "Share the weight. Her name was right there in my mouth. I swallowed it, like always. Names are just one more thing the world knows to come back for." },
     ],
   },
   {
@@ -570,8 +702,9 @@ const OBJECTS = [
       { who: "kali", text: "Tired means you've still got somewhere to get to. People who give up stop looking tired. They look... finished. You're not finished." },
       { who: "emy",  text: "How do you know." },
       { who: "kali", text: "Because you keep checking that I'm still behind you. Every twenty steps. All day." },
-      { who: "emy",  text: "...I do not." },
-      { who: "kali", text: "You did it twice while we've been standing here." },
+      { who: "emy",   text: "...I do not." },
+      { who: "kali",  text: "You did it twice while we've been standing here." },
+      { who: "flash", text: "Three times. She missed one. I check because the day she's not behind me is the day I forget how to keep walking. I'd rather not learn what that's like." },
     ],
   },
   {
@@ -591,11 +724,94 @@ const OBJECTS = [
     name: "a rusted barrel",
     x: 60, y: 78,
     bond: 0,
+    act: 1,
     choice: "fire",
     lines: [
-      { who: "narr", text: "An old burn barrel. There's enough dry scrap for one small fire. Maybe enough warmth for one of you to actually sleep." },
+      { who: "narr", text: "An old burn barrel. There's enough dry scrap for one small fire. Maybe enough warmth for one of us to actually sleep." },
     ],
   },
+
+  /* ----- ACT TWO objects -------------------------------------------------
+     These stay hidden until the night deepens (see checkProgress/revealAct2).
+     The mood here is closer, later, more unguarded. */
+  {
+    id: "ledger", name: "the ticket-window ledger", x: 30, y: 47, bond: 1, act: 2,
+    lines: [
+      { who: "narr",  text: "Behind the cracked ticket glass, a ledger swollen fat with damp. Columns of names. Destinations. Every line is someone who stood right where we're standing and believed they were going somewhere." },
+      { who: "kali",  text: "Look how many. All these people. All these somewheres." },
+      { who: "emy",   text: "All gone now. Names in a wet book nobody'll ever read." },
+      { who: "kali",  text: "We're reading it." },
+      { who: "emy",   text: "...Yeah. I guess we are." },
+      { who: "flash", text: "She does that. Finds the one thread of not-pointless in a thing and pulls until it holds my weight too. I walked in here sure the world was just a graveyard. She keeps quietly turning it back into a place where people lived." },
+      { who: "narr",  text: "She writes two names, small, in the margin where the paper's still dry. They'll be gone by morning. She writes them anyway." },
+      { who: "emy",   text: "...Leave a little room. In case we come back." },
+    ],
+  },
+  {
+    id: "shoe", name: "a child's shoe", x: 78, y: 73, bond: 1, act: 2,
+    lines: [
+      { who: "narr",  text: "A child's shoe on its side under the bench. Small. The laces still tied in a careful double knot somebody must have learned the slow way." },
+      { who: "emy",   text: "..." },
+      { who: "kali",  text: "Hey. You okay?" },
+      { who: "emy",   text: "Fine. It's just a shoe." },
+      { who: "flash", text: "It is not just a shoe. It's a person who got tied into their laces by somebody who loved them, on a morning that ended like all the mornings ended. I don't have words for that don't crack open, so I hand her 'fine.'" },
+      { who: "kali",  text: "We don't have to look at it." },
+      { who: "emy",   text: "No. Somebody should. Somebody should look at the small things and not flinch. It's the only funeral most of them ever got." },
+      { who: "narr",  text: "She sets the shoe upright, careful, the way you'd straighten something on a grave. Something in my chest goes tight and bright and dangerous, and I have to look away first." },
+    ],
+  },
+  {
+    id: "skylight", name: "the broken skylight", x: 50, y: 24, bond: 1, act: 2,
+    lines: [
+      { who: "narr",  text: "A jagged hole torn in the roof. Through it, impossibly, stars — more than the dead cities ever let us see. The dark up there doesn't know a thing ended down here." },
+      { who: "kali",  text: "There's the one thing the world couldn't ruin. Too far away to get the news." },
+      { who: "emy",   text: "Make a wish, then. Isn't that the deal." },
+      { who: "kali",  text: "You first." },
+      { who: "emy",   text: "I don't wish. Wishing's just disappointment with extra steps." },
+      { who: "flash", text: "I wished. Of course I wished. I wished for exactly what's standing next to me to still be standing next to me when the light comes up. I'd never say it out loud. Saying it out loud is how the world learns what to take." },
+      { who: "kali",  text: "Okay. Then I'll wish loud enough for the both of us." },
+      { who: "emy",   text: "...Don't waste it on me." },
+      { who: "kali",  text: "Too late. Already did." },
+    ],
+  },
+  {
+    id: "knife", name: "Emy's folding knife", x: 46, y: 70, bond: 1, act: 2,
+    lines: [
+      { who: "narr",  text: "She's got an old folding knife she keeps touching when she thinks I'm not looking. Bone handle, worn pale where her thumb sits. The one thing she carries that isn't strictly for surviving." },
+      { who: "kali",  text: "Can I?" },
+      { who: "emy",   text: "...Careful. It's sharp." },
+      { who: "narr",  text: "She sets it in my hand. From Emy, this is practically handing me her diary." },
+      { who: "kali",  text: "Whose was it?" },
+      { who: "emy",   text: "Someone's. Before. They taught me how to hold it so I'd never have to need anybody to keep me safe." },
+      { who: "flash", text: "And it worked. I never needed anybody. That was the whole point, and the whole prison. Then she walks in and I catch myself wanting to need her, and the knife hasn't got one useful thing to say about that." },
+      { who: "kali",  text: "They'd be glad it kept you safe." },
+      { who: "emy",   text: "Yeah. Funny thing is — lately I keep forgetting to reach for it." },
+      { who: "kali",  text: "Yeah? Why's that." },
+      { who: "emy",   text: "...You know why. Don't make me say it." },
+    ],
+  },
+  {
+    id: "flask", name: "a dented flask", x: 18, y: 64, bond: 1, act: 2,
+    lines: [
+      { who: "narr",  text: "A dented steel flask in a locker, somehow still sealed. She sniffs it, makes a face, takes a swig anyway, and hands it over. Some firewater that outlived the end of everything." },
+      { who: "kali",  text: "God, that's awful." },
+      { who: "emy",   text: "Best awful thing for miles." },
+      { who: "kali",  text: "(coughs) To the last train. May it stay good and gone." },
+      { who: "emy",   text: "To the last train." },
+      { who: "flash", text: "She's loose now, warm, laughing at the burn of it, and I could watch her laugh until the world starts itself over. I'm in so much trouble. The good kind. The kind I'd forgotten was even on the menu." },
+      { who: "emy",   text: "...You're easier to be around than anybody's got a right to be, you know that?" },
+      { who: "kali",  text: "That a compliment?" },
+      { who: "emy",   text: "It's the closest I've got. Take it before I take it back." },
+    ],
+  },
+];
+
+/* ----- ACT TWO transition: plays once when the night deepens. ----------- */
+const ACT2_INTRO = [
+  { who: "narr",  text: "The cold settles in for real. The dark gets older. Somewhere a beam ticks as the temperature drops, and the station gives up a few more of its secrets — shapes I didn't see before, or wasn't ready to." },
+  { who: "emy",   text: "...It's a long way still, till morning." },
+  { who: "kali",  text: "Good. I'm not done with tonight yet." },
+  { who: "flash", text: "Neither am I. God help me — I don't want this one to end. First time in years I've wanted the dark to last a little longer." },
 ];
 
 /* ---------------------------------------------------------------------------
@@ -606,26 +822,28 @@ const OBJECTS = [
 const CHOICES = {
   /* CHOICE 1 — the door: an exit kept open vs. closed for the two of you */
   door: {
-    prompt: { who: "kali", text: "Your call. Leave it open so we can run if we have to... or shut it, and it's just the two of us in here till morning." },
+    prompt: { who: "emy", text: "Your call, Kali. Leave it open so we can run if we have to... or shut it, and it's just the two of us in here till morning." },
     options: [
       {
         label: "Force it shut. \"Nothing's getting in tonight. Including the cold.\"",
         flag: "door_closed", warmth: +1,
         after: [
-          { who: "narr", text: "It takes both of you, shoulders to the wood. The door groans home. The cold stops moving. The room gets very quiet, and very small, and only yours." },
-          { who: "kali", text: "...Just us, then." },
-          { who: "emy",  text: "Just us. Don't make it weird." },
-          { who: "kali", text: "Too late." },
+          { who: "narr",  text: "It takes both of us, shoulders to the wood. The door groans home. The cold stops moving. The room gets very quiet, and very small, and only ours." },
+          { who: "kali",  text: "...Just us, then." },
+          { who: "emy",   text: "Just us. Don't make it weird." },
+          { who: "flash", text: "Just us. Sealed in. No road out and — God help me — I'm not looking for one. First time in years the want's louder than the fear. Don't make it weird, she says. I'm the one making it weird." },
+          { who: "kali",  text: "Too late." },
         ],
       },
       {
         label: "Leave it open. \"I like knowing the way out.\"",
         flag: "door_open", warmth: 0,
         after: [
-          { who: "narr", text: "You leave it. The cold keeps its road through the room. Emy stands where she can see it, the dark rectangle of out-there." },
-          { who: "kali", text: "You always need a door, huh." },
-          { who: "emy",  text: "I always need to know I could go. Doesn't mean I will." },
-          { who: "kali", text: "Okay. As long as you know you don't have to." },
+          { who: "narr",  text: "I leave it. The cold keeps its road through the room. Emy plants herself where she can see it — the dark rectangle of out-there." },
+          { who: "kali",  text: "You always need a door, huh." },
+          { who: "emy",   text: "I always need to know I could go. Doesn't mean I will." },
+          { who: "flash", text: "She left it open. For me. Didn't even make me ask. She figured out the shape of my fear and just... built the room around it. Nobody's ever done that. I don't have a word for what it does to me." },
+          { who: "kali",  text: "Okay. As long as you know you don't have to." },
         ],
       },
     ],
@@ -633,75 +851,115 @@ const CHOICES = {
 
   /* CHOICE 2 — the fire: who gets the warmth */
   fire: {
-    prompt: { who: "emy", text: "One fire. One of us actually sleeps. You take it. I'll keep watch." },
+    prompt: { who: "emy", text: "One fire. Barely enough scrap for it. Enough warmth for one of us to really sleep, maybe. ...Your call. You're better at calls than me." },
     options: [
       {
         label: "\"We split it. Both half-cold beats one of us alone.\"",
         flag: "fire_shared", warmth: +1,
         after: [
-          { who: "narr", text: "You build it small and sit close, close enough that the question of how close stops being a question. The fire ticks. Shoulders end up touching. Nobody moves away." },
-          { who: "kali", text: "See? Half-cold's not so bad." },
-          { who: "emy",  text: "...It's bearable." },
-          { who: "kali", text: "High praise, coming from you." },
+          { who: "narr",  text: "We build it small and sit close, close enough that the question of how close stops being a question. The fire ticks. Our shoulders end up touching. Neither of us moves away." },
+          { who: "kali",  text: "See? Half-cold's not so bad." },
+          { who: "flash", text: "Her shoulder against mine. I could map the exact line of it with my eyes shut. I keep thinking move, you'll wreck it, and my body keeps refusing the order. For once I let it lose the argument." },
+          { who: "emy",   text: "...It's bearable." },
+          { who: "kali",  text: "High praise, coming from you." },
         ],
       },
       {
-        label: "\"You sleep. I mean it. I don't sleep much anyway.\"",
+        label: "\"You take it, Emy. Sleep — I've got the watch.\"",
         flag: "fire_gave", warmth: +1,
         after: [
-          { who: "narr", text: "Kali curls by the barrel. Emy sits just outside the light, watching the door, watching her, mostly her." },
-          { who: "kali", text: "(half-asleep) You're staring." },
-          { who: "emy",  text: "I'm keeping watch." },
-          { who: "kali", text: "Mm. Watch closer, then. 'm cold." },
-          { who: "narr", text: "Emy moves into the light without deciding to. Some things her body knows before she'll admit them." },
+          { who: "narr",  text: "She folds down by the barrel, smaller than she'd ever let herself look awake. I take the dark just past the firelight and keep my eyes on the door. On her. Mostly on her." },
+          { who: "emy",   text: "(half-asleep) ...You're staring." },
+          { who: "kali",  text: "I'm keeping watch." },
+          { who: "emy",   text: "Mm. 'm cold." },
+          { who: "flash", text: "She stayed close. She's keeping watch over me like I'm something worth guarding. When did I get soft enough to let someone do that... and why don't I want it to stop." },
+          { who: "narr",  text: "I shift in until the fire's warmth and mine reach her at the same time. Some kindnesses you don't announce." },
         ],
       },
       {
-        label: "\"Take it. I'll be over here.\" (sit apart)",
+        label: "\"Take it. I'll be alright over here.\" (sit apart)",
         flag: "fire_apart", warmth: -1,
         after: [
-          { who: "narr", text: "Emy gives her the fire and takes the far wall, a careful distance of cold floor between them. Kali watches the gap and doesn't try to close it." },
-          { who: "kali", text: "You don't have to sit all the way over there." },
-          { who: "emy",  text: "I'm fine where I am." },
-          { who: "kali", text: "...Okay." },
+          { who: "narr",  text: "I give her the fire and take the far wall — a careful stretch of cold floor I put there on purpose. I'm so tired of being the only one reaching. Tonight I let the gap be a gap." },
+          { who: "emy",   text: "...You don't have to sit all the way over there." },
+          { who: "kali",  text: "I'm alright where I am." },
+          { who: "flash", text: "She pulled back. She finally pulled back. I do this — I teach people to stop trying, then I'm gutted when they learn. The worst part isn't the cold. It's how much of me was begging her to argue." },
         ],
       },
     ],
   },
 
-  /* CHOICE 3 — the hands: the late-night confession beat (unlocks near the end) */
+  /* CHOICE 3 — the hand: the wordless confession. Emy, of all people, makes
+     the offer; you (Kali) decide what to do with it. Unlocks near the end. */
   hands: {
-    prompt: { who: "narr", text: "Later. The fire's low or the cold's deep, depending. Kali's hand is on the floor between you, palm up. Not reaching. Just... there. An offer with no pressure on it." },
+    lead: [
+      { who: "narr",  text: "Later. The fire's low, or the cold's deep — depends which way the night went. We're quiet in the kind of way that's louder than talking." },
+      { who: "flash", text: "Do it. Just do it. Put your hand where she can find it. She's spent all night building me rooms with the doors left open — she did the brave part already. The least I can do is leave one thing of mine out in the cold and not snatch it back." },
+      { who: "narr",  text: "And then — I feel it before I see it. Emy's hand sliding onto the floor in the space between us. Palm up. Not reaching. Just there. From her, that's not a gesture. That's a held breath she's deciding not to take back." },
+    ],
     options: [
       {
         label: "Take her hand.",
         flag: "hand_held", warmth: +2,
         after: [
-          { who: "narr", text: "You put your hand in hers. She doesn't say anything clever about it, which is how you know it matters to her too." },
-          { who: "kali", text: "There you are." },
-          { who: "emy",  text: "Don't. I'll lose my nerve." },
-          { who: "kali", text: "Okay. I've got it. The nerve. I'll hold onto it for you." },
-          { who: "narr", text: "And she does. All the rest of the night, she holds on." },
+          { who: "narr",  text: "I put my hand in hers and don't say anything clever about it, so she'll know it's not a joke I'm setting up." },
+          { who: "emy",   text: "Don't. I'll lose my nerve." },
+          { who: "kali",  text: "Okay. I've got it, then. The nerve. I'll hold onto it for you." },
+          { who: "flash", text: "She took it. She didn't make me explain, didn't make it a thing. I put my hand out like a dare to myself and she just... met it. Like it was always going to be easy. Maybe — maybe it gets to be easy." },
+          { who: "narr",  text: "And she holds on. All the rest of the night, through every long hour of it, she holds on." },
         ],
       },
       {
-        label: "Almost. Then pull back.",
+        label: "Reach — then falter, afraid to get it wrong.",
         flag: "hand_almost", warmth: 0,
         after: [
-          { who: "narr", text: "Your fingers get close enough to feel the warmth coming off her skin. Then your hand finds your own knee instead. Old reflex. The body protecting itself from the thing it wants." },
-          { who: "kali", text: "It's okay." },
-          { who: "emy",  text: "I'm not— I do. Want to. I just—" },
-          { who: "kali", text: "I know. The hand'll be here. No expiry on it." },
+          { who: "narr",  text: "My fingers get close enough to feel the warmth coming off her skin. Then some old caution of mine — don't startle her, don't want it too loud — stalls my hand an inch short." },
+          { who: "flash", text: "She almost did. I felt her get close. Then nothing. ...Maybe I read it wrong. Maybe a hand on the floor is just a hand, and I'm the fool who made it mean the whole world." },
+          { who: "kali",  text: "I'm here. I'm not going anywhere. Whenever you're ready — even if ready's not tonight." },
+          { who: "emy",   text: "...Yeah." },
         ],
       },
       {
-        label: "Say nothing. Look at the door.",
+        label: "Leave it lying there. Look at the fire.",
         flag: "hand_none", warmth: -1,
         after: [
-          { who: "narr", text: "You look at the door instead. The dark rectangle of somewhere else. After a while, quietly, Kali takes her hand back and folds it into her sleeve." },
-          { who: "kali", text: "...Cold tonight." },
-          { who: "emy",  text: "Yeah." },
-          { who: "narr", text: "Neither of you says the other thing. The night gets longer." },
+          { who: "narr",  text: "I look at the fire instead. I tell myself it's kinder not to crowd her. I'm not sure I believe me." },
+          { who: "flash", text: "She left it there. Left me there — hand out in the cold like an idiot. I knew better. I always know better. Doesn't stop it from carving something out of me that won't grow back the same." },
+          { who: "narr",  text: "After a while, quietly, Emy takes her hand back and folds it into her sleeve. Neither of us says the other thing. The night gets longer." },
+        ],
+      },
+    ],
+  },
+
+  /* CHOICE 4 — the kiss. Only unlocks if she held your hand and the night ran
+     warm (warmth >= KISS_THRESHOLD). The last, softest decision of the night. */
+  kiss: {
+    lead: [
+      { who: "narr",  text: "Her hand is still warm in mine. Neither of us has let go, and the space between our shoulders has quietly become no space at all. She looks up. The firelight does something to her face the daylight never gets to." },
+      { who: "flash", text: "She's close. She's so close. Every alarm I own is screaming run, exit, protect it — and underneath all of them, quiet and certain, is the one voice I never let myself hear, saying: stay. Just this once. Stay." },
+      { who: "narr",  text: "Emy doesn't pull back. She just waits, breath caught, letting me be the one to decide. Trusting me with the deciding — which, from her, is the whole confession." },
+    ],
+    options: [
+      {
+        label: "Close the distance. Kiss her.",
+        flag: "kissed", warmth: +2,
+        after: [
+          { who: "narr",  text: "I lean in slow, giving her every chance in the world to stop me. She doesn't take a single one. Her mouth is chapped and warm and it trembles, just slightly, like the rest of her has finally caught up to what she wanted all along." },
+          { who: "narr",  text: "It isn't fireworks. It's quieter than that, and better — two people who outlived the end of the world deciding the world isn't over yet. When we part, she keeps her forehead against mine and won't open her eyes." },
+          { who: "emy",   text: "...Okay. Okay. Wow. Don't let that go to your head." },
+          { who: "kali",  text: "Way too late." },
+          { who: "flash", text: "Whole life I waited for the other shoe to drop. Turns out sometimes the thing coming for you in the dark is just someone who loves you, and the only thing she takes is the being-alone. Take it. It's yours. I don't want it back." },
+          { who: "emy",   text: "Hey. Kali. ...I'm glad it was you. At the end of the line. Out of the whole ruined world — I'm glad it was you." },
+        ],
+      },
+      {
+        label: "Stay close — just hold her tonight.",
+        flag: "held_close", warmth: +1,
+        after: [
+          { who: "narr",  text: "I don't close the last inch. Not tonight. Instead I pull her in against me, and her head finds the curve of my neck like it had been hunting for that exact spot for years." },
+          { who: "kali",  text: "We've got time. I'd rather get this right than get it fast." },
+          { who: "emy",   text: "...Yeah. Yeah, okay. This. This is good." },
+          { who: "flash", text: "She didn't push. She never pushes. She just made a place for me and let me be the one to step into it. Whatever this is — I think it's the first thing I've ever been brave enough to want to keep." },
         ],
       },
     ],
@@ -716,38 +974,58 @@ const CHOICES = {
         • DISTANT    : low warmth / pulled away / kept the door.
    --------------------------------------------------------------------------- */
 const ENDINGS = {
+  radiant: {
+    title: "The World, Beginning Again",
+    tag: "— radiant —",
+    body:
+      "I don't sleep, and for once I don't want to. She's curled into me, the knife forgotten in her pack for the first time since I've known her, her breath slow and warm against my throat.\n\n" +
+      "When the light comes up — gray, then gold, then a gold I've never seen the likes of — she stirs and looks at me like she's checking I'm real, decides that I am, and gives me the smile she's been hiding behind sarcasm since the day we met.\n\n" +
+      "\"The sea,\" she says, before I can. \"You wanted to see it. Let's go ruin it by actually looking at the thing.\"\n\n" +
+      "We leave the station hand in hand and we don't look back at the dead clock. Let it stay 11:54 forever; we're not waiting on anything anymore. The last train never came — and thank God it didn't, because we might have climbed aboard, and then we'd never have learned that the end of the line was only ever the beginning of us.",
+  },
   hopeful: {
     title: "Morning, and a Direction",
     tag: "— hopeful —",
     body:
-      "The light comes up gray and then, briefly, gold. You wake with her hand still in yours and her breath against your collar, " +
-      "and for one whole minute you don't reach for a single reason to leave.\n\n" +
-      "\"The sea,\" you say, before you can stop yourself. \"You said take you. Let's go find out if the poster lied.\"\n\n" +
-      "She smiles into your shoulder. The train never came. You realize, walking out into the wet bright ruin of the world, " +
-      "that you stopped waiting for it sometime in the night — and started, instead, going somewhere on purpose. Together. " +
-      "It is not safe. It was never going to be safe. But it is, finally, yours.",
+      "The light comes up gray and then, for a moment, gold. I wake with her hand still in mine and her breath against my collar, " +
+      "and for one whole minute I don't reach for a single reason this can't last.\n\n" +
+      "\"The sea,\" I say, before I can talk myself out of it. \"You never did take me. Let's go find out if the poster lied.\"\n\n" +
+      "She huffs a laugh into my shoulder — and then she nods. The train never came. Walking out into the wet, bright ruin of the morning, " +
+      "I understand we both stopped waiting for it somewhere in the night, and started, instead, going somewhere on purpose. Together. " +
+      "It is not safe. It was never going to be safe. But it's ours now, and we're choosing it with our eyes open.",
   },
   bittersweet: {
     title: "What the Night Held",
     tag: "— bittersweet —",
     body:
-      "You don't sleep, not really. You watch her instead, and the watching feels like a kind of confession you'll never have the spine to say out loud.\n\n" +
-      "By morning the words are still stuck behind your teeth, where they live. But she catches your eye on the way out, " +
-      "and there's no blame in it — just a soft, patient knowing, like she's decided to wait for a train she's pretty sure will come.\n\n" +
-      "\"Walk with me a while?\" she asks.\n\n" +
-      "\"Yeah,\" you say. \"A while.\" It isn't everything. It isn't nothing. You walk out side by side into the cold, " +
-      "close enough that your shadows touch, and you let that be the truth you can manage today.",
+      "I don't sleep, not really. I watch her instead, and the watching feels like a confession my mouth won't agree to make.\n\n" +
+      "By morning the words are still behind my teeth, where they live. But she catches my eye on the way out, and there's no blame in it — " +
+      "just that patient, knowing softness of hers, like she's decided to wait for a train she's almost sure will come.\n\n" +
+      "\"Walk with me a while?\" I ask.\n\n" +
+      "\"Yeah,\" she says. \"A while.\" It isn't everything. It isn't nothing. We walk out side by side into the cold, " +
+      "close enough that our shadows touch, and I let that be the truth I can carry today.",
   },
   distant: {
-    title: "The Road, Kept Open",
+    title: "The Long Way Apart",
     tag: "— distant —",
     body:
-      "Morning finds the two of you on opposite sides of a cold room, exactly as careful as when the night began.\n\n" +
-      "She gathers her pack without a word and ties the broken zipper with her bootlace. At the door she pauses — that door you never let close — " +
-      "and for a second it looks like she might say the thing. She doesn't. Neither do you. That was always the easier silence to keep.\n\n" +
-      "\"Take care of yourself, Emy,\" she says.\n\n" +
-      "\"You too.\" And you mean it, you mean it so much it aches, which is exactly why you can't say anything else. " +
-      "You watch her go through the open door, out into the gray. You kept the exit clear all night. You just never thought it'd be her using it.",
+      "Morning finds us on opposite sides of a cold room, exactly as careful as when the night began.\n\n" +
+      "She gathers her pack without a word and ties the broken zipper with her bootlace. At the door she pauses, " +
+      "and for a second it looks like she might finally say the thing. She doesn't. I don't either. That was always the easier silence to keep.\n\n" +
+      "\"Take care of yourself, Kali,\" she says.\n\n" +
+      "\"You too.\" And I mean it — I mean it so much it aches, which is exactly why I can't manage anything else. " +
+      "I watch her go out into the gray. All night I wondered which of us would end up needing the way out. " +
+      "I never once thought it would be her walking through it, and me letting her.",
+  },
+  severed: {
+    title: "Two Roads in the Dark",
+    tag: "— severed —",
+    body:
+      "We pass the night like two stones in the same cold riverbed — close together, touching nothing.\n\n" +
+      "I tell myself I tried. I'm not sure it's true. Somewhere in the dark I stopped reaching, and she let me, because letting people go is the one thing she has truly mastered.\n\n" +
+      "By morning she's already at the threshold when I wake — pack on her shoulder, knife back in her hand like the old days never paused.\n\n" +
+      "\"Easier this way,\" she says, not unkindly. And maybe she's right. Maybe two people who can't make their mouths say the words are just two more things the world quietly wears down to nothing.\n\n" +
+      "She goes one way down the dead track. After a while, I go the other. The station keeps its silence. It has had a great deal of practice.",
   },
 };
 
@@ -760,10 +1038,15 @@ const state = {
   warmth: 0,             // accumulates from objects + choices
   flags: {},             // choice flags
   examined: {},          // which objects have been looked at
-  choicesMade: 0,        // door + fire (+ hands) progress
-  handOffered: false,    // whether the final hands beat is unlocked
+  choicesMade: 0,        // door + fire progress
+  act: 1,                // 1 = first sweep of the station, 2 = the night deepens
+  handOffered: false,    // whether the late "sit with her" beat is unlocked
+  kissOffered: false,    // whether the kiss beat is unlocked
   finished: false,
 };
+
+// Once warmth is at least this high AND she's held your hand, the kiss unlocks.
+const KISS_THRESHOLD = 6;
 
 // --- DOM refs ---------------------------------------------------------------
 const el = (id) => document.getElementById(id);
@@ -786,7 +1069,9 @@ let typing = false;    // currently animating text
 let typeTimer = null;
 let fullLine = "";     // the full text of the line being typed
 
-const NAMES = { emy: "EMY", kali: "KALI", narr: "" };
+// Speaker labels. "flash" = a glimpse of Emy's unspoken interior (Emy POV),
+// surfacing inside Kali's perspective.
+const NAMES = { emy: "EMY", kali: "KALI", narr: "", flash: "EMY — unspoken" };
 
 function showDialogue() { dialogue.classList.remove("hidden"); }
 function hideDialogue() { dialogue.classList.add("hidden"); clearSpeaker(); }
@@ -799,13 +1084,15 @@ function retrigger(node, cls) {
 }
 
 // Step the active character into the light. Narration dims both gently.
+// A "flash" lights Emy in cold blue — we're inside her head, not the room.
 const figEmy = el("fig-emy"), figKali = el("fig-kali");
 function highlightSpeaker(who) {
-  figEmy.classList.toggle("speaking", who === "emy");
+  figEmy.classList.toggle("speaking", who === "emy" || who === "flash");
   figKali.classList.toggle("speaking", who === "kali");
+  figEmy.classList.toggle("flashing", who === "flash");
 }
 function clearSpeaker() {
-  figEmy.classList.remove("speaking");
+  figEmy.classList.remove("speaking", "flashing");
   figKali.classList.remove("speaking");
 }
 
@@ -840,10 +1127,14 @@ function renderLine(item) {
   // Light up whoever is speaking; dim the other / both during narration
   highlightSpeaker(item.who);
 
+  // A flash slips us into Emy's POV: cold wash over the whole scene.
+  if (item.who === "flash") retrigger(el("flash-fx"), "fire");
+
   fullLine = item.text;
   lineEl.innerHTML = "";
   const span = document.createElement("span");
-  if (item.who === "narr") span.className = "narr-line";
+  if (item.who === "narr")  span.className = "narr-line";
+  if (item.who === "flash") span.className = "flash-line";
   lineEl.appendChild(span);
 
   // Typewriter effect
@@ -882,8 +1173,10 @@ dialogue.addEventListener("click", (e) => {
 // --- Choices ----------------------------------------------------------------
 function presentChoice(choiceKey) {
   const c = CHOICES[choiceKey];
-  // Show the prompt line first, then the options.
-  playSequence([c.prompt], () => {
+  // Play the lead-in (a full sequence if `lead` is given, else the single
+  // `prompt` line), then reveal the options.
+  const leadIn = c.lead ? c.lead.slice() : [c.prompt];
+  playSequence(leadIn, () => {
     continueEl.classList.add("gone");
     choicesEl.innerHTML = "";
     c.options.forEach((opt) => {
@@ -912,36 +1205,77 @@ function applyChoice(opt) {
 function afterChoiceResolved(choiceKey) {
   if (choiceKey === "door" || choiceKey === "fire") {
     state.choicesMade++;
-    maybeUnlockHands();
+    checkProgress();
   } else if (choiceKey === "hands") {
-    // Final beat done -> go to ending
-    setTimeout(goToEnding, 600);
+    // If the night ran warm and she held your hand, the kiss beat opens.
+    // Otherwise the night ends here.
+    if (state.flags.hand_held && state.warmth >= KISS_THRESHOLD) {
+      unlockKiss();
+    } else {
+      setTimeout(goToEnding, 700);
+    }
+  } else if (choiceKey === "kiss") {
+    setTimeout(goToEnding, 800);
   }
 }
 
-// Once both the door and fire choices are made AND most objects seen,
-// unlock the final "hands" beat as a glowing prompt.
-function maybeUnlockHands() {
-  const examinedCount = Object.keys(state.examined).length;
-  if (state.choicesMade >= 2 && examinedCount >= 5 && !state.handOffered) {
-    state.handOffered = true;
-    hintEl.textContent = "The night has gone quiet. Maybe it's time to sit with her.";
-    hintEl.style.opacity = 1;
-    addHandsHotspot();
+// How many objects of a given act have been examined so far.
+function examinedCountForAct(act) {
+  return OBJECTS.filter((o) => (o.act || 1) === act && state.examined[o.id]).length;
+}
+
+// Staged progression: Act 1 -> Act 2 (night deepens) -> the hand beat.
+function checkProgress() {
+  // Reveal Act 2 once Act 1 is mostly explored AND both early choices are made.
+  if (state.act === 1 && state.choicesMade >= 2 && examinedCountForAct(1) >= 6) {
+    revealAct2();
+    return;
   }
+  // Unlock the hand beat once Act 2 has been explored a little.
+  if (state.act === 2 && !state.handOffered && examinedCountForAct(2) >= 3) {
+    state.handOffered = true;
+    hintEl.textContent = "The night's gone deep and quiet. Maybe it's just time to sit with her.";
+    hintEl.style.opacity = 1;
+    addInteractHotspot("hands", "sit with her", 50, 60);
+  }
+}
+
+// The night deepens: bring out the Act 2 objects + a quiet transition.
+function revealAct2() {
+  state.act = 2;
+  addHotspotsForAct(2);
+  playSequence(ACT2_INTRO, () => {
+    hideDialogue();
+    hintEl.textContent = "New shapes in the dark now. Go and look.";
+    hintEl.style.opacity = 1;
+  });
+}
+
+// The kiss only appears after a warm hand-hold.
+function unlockKiss() {
+  state.kissOffered = true;
+  hintEl.textContent = "She's right here. The whole rest of the world has gone quiet.";
+  hintEl.style.opacity = 1;
+  addInteractHotspot("kiss", "lean in", 50, 56, "#f2c98a");
 }
 
 // --- Bond meter -------------------------------------------------------------
 function updateBond() {
-  // Map warmth (can range roughly -2..+6) into 0..5 pips.
-  const filled = Math.max(0, Math.min(5, Math.round((state.warmth + 1) )));
+  // Warmth can range from roughly -3 up to ~15. Map it onto 0..5 pips.
+  const filled = Math.max(0, Math.min(5, Math.round(state.warmth / 2.5)));
   bondPips.forEach((p, idx) => p.classList.toggle("on", idx < filled));
 }
 
 // --- Hotspots ---------------------------------------------------------------
 function buildHotspots() {
   hotspots.innerHTML = "";
-  OBJECTS.forEach((obj) => addHotspot(obj));
+  addHotspotsForAct(1);
+}
+
+// Add only the objects belonging to a given act (so Act 2 can appear later
+// without disturbing the already-visited Act 1 markers).
+function addHotspotsForAct(act) {
+  OBJECTS.filter((o) => (o.act || 1) === act).forEach((obj) => addHotspot(obj));
 }
 
 function addHotspot(obj) {
@@ -983,37 +1317,43 @@ function examineObject(obj, btn) {
   }
   playSequence(obj.lines, () => {
     hideDialogue();
-    maybeUnlockHands();
+    checkProgress();
   });
 }
 
-// The final "hands" hotspot is added dynamically between the two figures.
-function addHandsHotspot() {
+// Dynamic story-beat hotspots (the hand, the kiss) added between the figures.
+function addInteractHotspot(choiceKey, label, x, y, dotColor) {
   const b = document.createElement("button");
-  b.className = "hotspot";
-  b.style.left = "50%";
-  b.style.top  = "62%";
-  b.dataset.id = "hands";
+  b.className = "hotspot beat";
+  b.style.left = x + "%";
+  b.style.top  = y + "%";
+  b.dataset.id = choiceKey;
   b.innerHTML =
     '<span class="ring"></span><span class="dot"></span>' +
-    '<span class="label">sit with her</span>';
-  // make this one warmer-colored via inline style
-  b.querySelector(".dot").style.background = "#e7b76a";
+    '<span class="label">' + label + '</span>';
+  if (dotColor) b.querySelector(".dot").style.background = dotColor;
   b.onclick = () => {
     if (typing || choicesEl.children.length) return;
     hintEl.style.opacity = 0;
-    presentChoice("hands");
+    b.remove(); // a story beat happens once
+    presentChoice(choiceKey);
   };
   hotspots.appendChild(b);
 }
 
 // --- Ending -----------------------------------------------------------------
+// Five outcomes, chosen from warmth + key flags. Checked most-specific first.
 function resolveEnding() {
-  // HOPEFUL: clearly warm and she took the hand.
-  if (state.flags.hand_held && state.warmth >= 4) return "hopeful";
-  // DISTANT: pulled fully away, or cold throughout.
-  if (state.flags.hand_none || state.warmth <= 1) return "distant";
-  // Everything in the middle.
+  const w = state.warmth, f = state.flags;
+  // RADIANT: you kissed her and the whole night ran warm.
+  if (f.kissed && w >= 9) return "radiant";
+  // HOPEFUL: you reached for each other (kiss, a held embrace, or a warm hand).
+  if (f.kissed || f.held_close || (f.hand_held && w >= 7)) return "hopeful";
+  // SEVERED: shut down at every turn and the night stayed cold.
+  if (f.hand_none && f.fire_apart && w <= 3) return "severed";
+  // DISTANT: pulled away, or cold throughout.
+  if (f.hand_none || w <= 3) return "distant";
+  // BITTERSWEET: everything in between — reached, almost, not quite.
   return "bittersweet";
 }
 
@@ -1140,7 +1480,9 @@ function resetGame() {
   state.flags = {};
   state.examined = {};
   state.choicesMade = 0;
+  state.act = 1;
   state.handOffered = false;
+  state.kissOffered = false;
   state.finished = false;
   el("hud").style.display = "";
   hotspots.style.display = "";
